@@ -1,0 +1,16 @@
+IVI-IS DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+IMPORTS CONTENT-TYPE, ContentId
+FROM IVI {iso (1) standard (0) ivi (19321) major-version-3 (3) minor-version-1 (1)} WITH SUCCESSORS;
+
+   dummyId    ContentId ::= 0
+   test1      ContentId ::= 1
+
+InfrastructureSupportSet CONTENT-TYPE ::= {
+   {NULL  IDENTIFIED BY dummyId} |
+   {INTEGER  IDENTIFIED BY test1}
+ , ...
+}
+
+
+END
