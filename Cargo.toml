@@ -15,16 +15,51 @@ rasn-its = "0.28.13"
 chrono = { version = "0.4.45", features = ["serde"], default-features = false }
 serde = { version = "1.0.228", features = ["derive"], default-features = false }
 serde_json =  { version = "1.0.150", optional = true }
-base64 =  { version = "0.22.1", optional = true }
+reqwest =  { version = "0.13.4", optional = true, features = ["blocking"] }
+base64 =  { version = "0.22.1", default-features = false, features = ["alloc"] }
 lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
+generic-array = "1.4.3"
+p384 = "0.14.0-rc.15"
+elliptic-curve = "0.14.1"
+p256 = "0.14.0-rc.15"
+bp256 = { version = "0.14.0-rc.15", features = ["ecdsa", "arithmetic"] }
+bp384 = { version = "0.14.0-rc.15", features = ["ecdsa", "arithmetic"] }
+sm2 = { version = "0.14.0-rc.15", features = ["dsa"] }
+ecdsa = "0.17.0-rc.23"
+sec1 = "0.8.1"
+sha2 = "0.11.0"
+crypto-bigint = "0.7.5"
+hybrid-array = "0.4.13"
+sm3 = "0.5.0"
+primeorder = "0.14.0-rc.15"
+num-traits = "0.2.19"
+hex = { version = "0.4.3", optional = true }
+url = { version = "2.5.8", default-features = false }
 
 [features]
-build-binary = ["pretty_env_logger", "pcap-parser", "serde_json", "chrono/now", "base64"]
+build-binary = ["pretty_env_logger", "pcap-parser", "serde_json", "chrono/now", "reqwest", "hex"]
 
 [[bin]]
 name = "c-its-pcap"
-path = "src/bin/main.rs"
+path = "src/util/pcap.rs"
+required-features = ["build-binary"]
+
+[[bin]]
+name = "c-its-download-tlm"
+path = "src/util/download_tlm.rs"
+required-features = ["build-binary"]
+
+[[bin]]
+name = "c-its-download-ctl"
+path = "src/util/download_ctl.rs"
+required-features = ["build-binary"]
+
+[[bin]]
+name = "c-its-download-int-certs"
+path = "src/util/download_int_certs.rs"
 required-features = ["build-binary"]
 
 [build-dependencies]
 rasn-compiler = "0.16.0"
+bindgen = "0.72.1"
+reqwest = { version = "0.13.4", features = ["blocking"] }

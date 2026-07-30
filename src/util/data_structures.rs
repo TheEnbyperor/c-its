@@ -2,8 +2,9 @@ use c_its::geo_networking;
 
 #[derive(serde::Serialize)]
 pub struct ITSFrame<'a> {
-    #[serde(serialize_with = "serialize_mac_address")]
+    #[serde(serialize_with = "c_its::util::serialize_mac_address")]
     pub wifi_source_address: ieee80211::mac_parser::MACAddress,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
     pub geo_networking: GeoNetworkingFrame<'a>,
 }
 
@@ -15,6 +16,7 @@ pub struct GeoNetworkingFrame<'a> {
     pub is_mobile: bool,
     pub traffic_class: geo_networking::TrafficClass,
     pub header: PacketHeader,
+    pub security: Option<c_its::security::SecurityReport>,
     pub data: Option<PacketData<'a>>,
 }
 
@@ -46,9 +48,7 @@ pub enum PacketHeader {
         dcc: geo_networking::DistributedCongestionControlData,
     },
     #[serde(rename = "beacon")]
-    Beacon {
-        source_position: LongPositionVector,
-    },
+    Beacon { source_position: LongPositionVector },
 }
 
 #[derive(serde::Serialize)]
@@ -58,7 +58,7 @@ pub enum PacketData<'a> {
     BtpA {
         destination_port: u16,
         source_port: u16,
-        #[serde(serialize_with = "serialize_bytes")]
+        #[serde(serialize_with = "c_its::util::serialize_bytes")]
         data: &'a [u8],
     },
     #[serde(rename = "btp_b")]
@@ -68,37 +68,37 @@ pub enum PacketData<'a> {
         data: InnerData<'a>,
     },
     #[serde(rename = "ipv6")]
-    Ipv6(
-        #[serde(serialize_with = "serialize_bytes")]
-        &'a [u8]
-    ),
+    Ipv6(#[serde(serialize_with = "c_its::util::serialize_bytes")] &'a [u8]),
 }
 
 #[derive(serde::Serialize)]
 #[serde(tag = "type", content = "data")]
 pub enum InnerData<'a> {
     #[serde(rename = "cam")]
-    CAM(serde_json::Value),
+    CAM {
+        data: serde_json::Value,
+        security_authorized: bool,
+    },
     #[serde(rename = "denm")]
-    DENM(serde_json::Value),
+    DENM { data: serde_json::Value },
     #[serde(rename = "mapem")]
-    MAPEM(serde_json::Value),
+    MAPEM { data: serde_json::Value },
     #[serde(rename = "spatem")]
-    SPATEM(serde_json::Value),
+    SPATEM { data: serde_json::Value },
     #[serde(rename = "ivim")]
-    IVIM(serde_json::Value),
+    IVIM { data: serde_json::Value },
     #[serde(rename = "raw")]
-    Raw(
-        #[serde(serialize_with = "serialize_bytes")]
-        &'a [u8]
-    )
+    Raw {
+        #[serde(serialize_with = "c_its::util::serialize_bytes")]
+        data: &'a [u8],
+    },
 }
 
 #[derive(serde::Serialize)]
 pub struct GnAddress {
     pub manually_configured: bool,
     pub traffic_participant_type: TrafficParticipant,
-    #[serde(serialize_with = "serialize_mac_address")]
+    #[serde(serialize_with = "c_its::util::serialize_mac_address")]
     pub mac_address: ieee80211::mac_parser::MACAddress,
 }
 
@@ -186,34 +186,11 @@ impl From<&geo_networking::LongPositionVector> for LongPositionVector {
             position: v.position,
             accurate_position: v.accurate_position,
             acquisition_time_tai_ms: v.acquisition_time.0,
-            acquisition_time_utc: v
-                .acquisition_time
-                .to_datetime(&chrono::Utc::now())
-                .to_chrono_date_time(geo_networking::LEAP_SECONDS)
-                .unwrap(),
+            acquisition_time_utc: c_its::util::chrono_from_tai(
+                &v.acquisition_time.to_datetime(&chrono::Utc::now()),
+            ),
             speed_ms: v.speed_ms,
             heading_deg: v.heading_deg,
         }
     }
-}
-
-fn serialize_mac_address<S: serde::Serializer>(
-    mac: &ieee80211::mac_parser::MACAddress,
-    ser: S,
-) -> Result<S::Ok, S::Error> {
-    let str = mac
-        .iter()
-        .map(|s| format!("{:02X}", s))
-        .collect::<Vec<_>>()
-        .join(":");
-    ser.serialize_str(str.as_str())
-}
-
-fn serialize_bytes<S: serde::Serializer>(
-    data: &[u8],
-    ser: S,
-) -> Result<S::Ok, S::Error> {
-    use base64::Engine;
-    let str = base64::prelude::BASE64_STANDARD.encode(&data);
-    ser.serialize_str(str.as_str())
 }

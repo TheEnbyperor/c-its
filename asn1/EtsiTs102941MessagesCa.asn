@@ -1,0 +1,95 @@
+/*************************************************************************************
+   This file contains the EtsiTs102941Messages module containing all possible PKI messages.
+   It should be used when all PKI messages needs to be implemented (for example, for CA development)
+**************************************************************************************/
+EtsiTs102941MessagesCa
+  { itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) messagesCa(0) version3(3)}
+
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+IMPORTS
+
+EtsiTs103097Data-Signed,
+EtsiTs103097Data-SignedExternalPayload,
+EtsiTs103097Data-Encrypted-Unicast,
+EtsiTs103097Data-SignedAndEncrypted-Unicast
+FROM EtsiTs103097Module
+{itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) secHeaders(103097) core(1) version2(2)}
+
+Version
+FROM EtsiTs102941BaseTypes
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) baseTypes(3) version3(3) }
+
+InnerEcRequestSignedForPop, InnerEcResponse
+FROM EtsiTs102941TypesEnrolment
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) enrolment(4) version3(3) }
+
+InnerAtRequest, InnerAtResponse
+FROM EtsiTs102941TypesAuthorization
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) authorization(5) version3(3) }
+
+ToBeSignedCrl, ToBeSignedTlmCtl, ToBeSignedRcaCtl
+FROM EtsiTs102941TrustLists
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) trustLists(6) version3(3) }
+
+AuthorizationValidationRequest, AuthorizationValidationResponse
+FROM EtsiTs102941TypesAuthorizationValidation
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) authValidation(7) version3(3) }
+
+CaCertificateRequest
+FROM EtsiTs102941TypesCaManagement
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) caManagement(8) version3(3) }
+
+ToBeSignedLinkCertificate, ToBeSignedLinkCertificateTlm, ToBeSignedLinkCertificateRca
+FROM EtsiTs102941TypesLinkCertificate
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) linkCertificate(9) version3(3)}
+
+;
+
+/************
+-- Messages
+************/
+EnrolmentRequestMessage ::= EtsiTs103097Data-SignedAndEncrypted-Unicast {EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{enrolmentRequest PRESENT})})}
+EnrolmentResponseMessage ::= EtsiTs103097Data-SignedAndEncrypted-Unicast {EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{enrolmentResponse PRESENT})})}
+AuthorizationRequestMessage ::= EtsiTs103097Data-Encrypted-Unicast {EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{authorizationRequest PRESENT})})}
+AuthorizationRequestMessageWithPop ::= EtsiTs103097Data-SignedAndEncrypted-Unicast {EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{authorizationRequest PRESENT})})}
+AuthorizationResponseMessage ::= EtsiTs103097Data-SignedAndEncrypted-Unicast {EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{authorizationResponse PRESENT})})}
+CertificateRevocationListMessage ::= EtsiTs103097Data-Signed{EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{certificateRevocationList PRESENT})})}
+TlmCertificateTrustListMessage ::= EtsiTs103097Data-Signed{EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{certificateTrustListTlm PRESENT})})}
+RcaCertificateTrustListMessage ::= EtsiTs103097Data-Signed{EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{certificateTrustListRca PRESENT})})}
+AuthorizationValidationRequestMessage ::= EtsiTs103097Data-SignedAndEncrypted-Unicast {EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{authorizationValidationRequest PRESENT})})}
+AuthorizationValidationResponseMessage ::= EtsiTs103097Data-SignedAndEncrypted-Unicast {EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{authorizationValidationResponse PRESENT})})}
+CaCertificateRequestMessage ::= EtsiTs103097Data-Signed {EtsiTs102941Data(WITH COMPONENTS{..., content (WITH COMPONENTS{caCertificateRequest PRESENT})})}
+CaCertificateRekeyingMessage ::= EtsiTs103097Data-Signed {EtsiTs103097Data-Signed {EtsiTs102941Data(WITH COMPONENTS{..., content (WITH COMPONENTS{caCertificateRequest PRESENT})})}}
+TlmLinkCertificateMessage ::= EtsiTs103097Data-Signed {EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{linkCertificateTlm PRESENT})})}
+RcaSingleSignedLinkCertificateMessage ::= EtsiTs103097Data-Signed {EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{singleSignedLinkCertificateRca PRESENT})})}
+RcaDoubleSignedLinkCertificateMessage ::= EtsiTs103097Data-Signed {EtsiTs102941Data (WITH COMPONENTS{..., content (WITH COMPONENTS{doubleSignedlinkCertificateRca PRESENT})})}
+
+/************
+-- EtsiTs102941Data
+************/
+
+EtsiTs102941Data::= SEQUENCE {
+  version Version (v1),
+  content EtsiTs102941DataContent
+  }
+
+EtsiTs102941DataContent ::= CHOICE {
+  enrolmentRequest                        InnerEcRequestSignedForPop,
+  enrolmentResponse                       InnerEcResponse,
+  authorizationRequest                    InnerAtRequest,
+  authorizationResponse                   InnerAtResponse,
+  certificateRevocationList               ToBeSignedCrl,
+  certificateTrustListTlm                 ToBeSignedTlmCtl,
+  certificateTrustListRca                 ToBeSignedRcaCtl,
+  authorizationValidationRequest          AuthorizationValidationRequest,
+  authorizationValidationResponse         AuthorizationValidationResponse,
+  caCertificateRequest                    CaCertificateRequest,
+  ...,
+  linkCertificateTlm                      ToBeSignedLinkCertificateTlm,
+  singleSignedLinkCertificateRca          ToBeSignedLinkCertificateRca,
+  doubleSignedlinkCertificateRca          RcaSingleSignedLinkCertificateMessage
+  }
+
+END

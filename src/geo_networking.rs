@@ -4,8 +4,6 @@ use alloc::vec::Vec;
 const GN_TIME_EPOCH: i64 = 1072915168;
 pub type GnTaiTime = tai_time::TaiTime<GN_TIME_EPOCH>;
 
-pub const LEAP_SECONDS: i64 = 37;
-
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
 pub struct Time(pub u32);
 
@@ -13,9 +11,8 @@ const WRAP_MS: i128 = 1i128 << 32;
 
 impl Time {
     pub fn to_datetime<Tz: chrono::TimeZone>(&self, now: &chrono::DateTime<Tz>) -> GnTaiTime {
-
-        let now = GnTaiTime::from_chrono_date_time(now, LEAP_SECONDS);
-        let now_ms = (now.as_secs() as i128 * 1000) + (now.subsec_nanos() / 1000000) as i128;
+        let now: GnTaiTime = crate::util::tai_from_chrono(now);
+        let now_ms = (now.as_secs() as i128 * 1000) + (now.subsec_nanos() / 1_000_000) as i128;
 
         let base_ms = self.0 as i128;
         let k = (now_ms - base_ms).div_euclid(WRAP_MS);
@@ -30,12 +27,12 @@ impl Time {
         }
 
         let best_ms = best.expect("at least one candidate").1;
-        GnTaiTime::new((best_ms / 1000) as i64, (best_ms % 1000) as u32 * 1000000).unwrap()
+        GnTaiTime::new((best_ms / 1000) as i64, (best_ms % 1000) as u32 * 1_000_000).unwrap()
     }
 
     pub fn from_datetime<Tz: chrono::TimeZone>(dt: &chrono::DateTime<Tz>) -> Self {
-        let dt = GnTaiTime::from_chrono_date_time(dt, LEAP_SECONDS);
-        let dt_ms = (dt.as_secs() as i128 * 1000) + (dt.subsec_nanos() / 1000000) as i128;
+        let dt: GnTaiTime = crate::util::tai_from_chrono(dt);
+        let dt_ms = (dt.as_secs() as i128 * 1000) + (dt.subsec_nanos() / 1_000_000) as i128;
         Self((dt_ms % WRAP_MS) as u32)
     }
 }
@@ -350,7 +347,11 @@ impl<'a> GeoNetworkingFrame<'a> {
 }
 
 impl SignedPacket {
-    pub fn common_header(&self) -> Result<CommonHeader, &'static str> {
+    pub fn security_report(&self, store: &mut crate::security::SecurityStore, now: chrono::DateTime<chrono::Utc>) -> Result<super::security::SecurityReport, &'static str> {
+        store.security_report(&self.0, now)
+    }
+
+    pub fn common_header(&self) -> Result<CommonHeader<'_>, &'static str> {
         let Some(inner_data) = &self.0.tbs_data.payload.data else {
             return Err("signed data value not present")
         };

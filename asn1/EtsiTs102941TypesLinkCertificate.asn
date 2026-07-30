@@ -1,0 +1,29 @@
+EtsiTs102941TypesLinkCertificate
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) linkCertificate(9) version3(3)}
+
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+IMPORTS
+
+Time32, HashedData
+FROM EtsiTs102941BaseTypes
+{itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) baseTypes(3) version3(3)}
+
+;
+
+/************
+-- Link certificate messages
+************/
+
+ToBeSignedLinkCertificate ::= SEQUENCE {
+  expiryTime          Time32,
+  certificateHash     HashedData,
+  ...
+}
+
+ToBeSignedLinkCertificateTlm ::= ToBeSignedLinkCertificate
+ToBeSignedLinkCertificateRca ::= ToBeSignedLinkCertificate
+
+END
+

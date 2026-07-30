@@ -1,0 +1,30 @@
+EtsiTs102941TypesCaManagement
+  { itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) caManagement(8) version3(3)}
+
+DEFINITIONS AUTOMATIC TAGS ::=
+BEGIN
+
+IMPORTS
+
+EtsiTs103097Certificate, EtsiTs103097Data-Signed
+FROM
+EtsiTs103097Module
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) secHeaders(103097) core(1) version2(2) }
+
+PublicKeys, CertificateSubjectAttributes
+FROM EtsiTs102941BaseTypes
+{ itu-t(0) identified-organization(4) etsi(0) itsDomain(5) wg5(5) ts(102941) baseTypes(3) version3(3)}
+
+;
+
+/************
+-- CA certificate request
+************/
+
+CaCertificateRequest ::= SEQUENCE {
+  publicKeys                  PublicKeys,
+  requestedSubjectAttributes  CertificateSubjectAttributes,
+  ...
+}
+
+END
