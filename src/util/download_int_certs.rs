@@ -98,14 +98,14 @@ fn sync_ctl(state: &mut State) {
         return;
     };
 
-    let ctl_report = match state.security_store.security_report(ctl) {
+    let ctl_report = match state.security_store.security_report(ctl, chrono::Utc::now()) {
         Ok(r) => r,
         Err(err) => {
             log::error!("Unable to generate security report for CTL: {}", err);
             return;
         }
     };
-    if *ctl_report.provider_service() != c_its::security::certs::ProviderService::CTL {
+    if ctl_report.provider_service() != c_its::security::perms::ProviderService::CTL {
         log::error!("CTL message is not declared as a CTl service message");
         return;
     }
@@ -113,8 +113,11 @@ fn sync_ctl(state: &mut State) {
         log::error!("Signature over CTL does not verify");
         return;
     }
-    let ctl_report_certs = ctl_report.certificates();
-    if ctl_report_certs.len() != 1 || ctl_report_certs[0] != state.root_ca_report {
+    let Some(ctl_report_certs) = ctl_report.validated_chain() else {
+        log::error!("CTL not signed with a valid chain");
+        return
+    };
+    if ctl_report_certs.len() != 1 || ctl_report_certs.ee_cert() != &state.root_ca_report {
         log::error!("CTL invalidly signed");
         return;
     }
@@ -301,14 +304,14 @@ fn sync_crl(state: &mut State) {
         return;
     };
 
-    let crl_report = match state.security_store.security_report(crl) {
+    let crl_report = match state.security_store.security_report(crl, chrono::Utc::now()) {
         Ok(r) => r,
         Err(err) => {
             log::error!("Unable to generate security report for CRL: {}", err);
             return;
         }
     };
-    if *crl_report.provider_service() != c_its::security::certs::ProviderService::CRL {
+    if crl_report.provider_service() != c_its::security::perms::ProviderService::CRL {
         log::error!("CRL message is not declared as a CRl service message");
         return;
     }
@@ -316,8 +319,11 @@ fn sync_crl(state: &mut State) {
         log::error!("Signature over CRL does not verify");
         return;
     }
-    let ctl_report_certs = crl_report.certificates();
-    if ctl_report_certs.len() != 1 || ctl_report_certs[0] != state.root_ca_report {
+    let Some(crl_report_certs) = crl_report.validated_chain() else {
+        log::error!("CTL not signed with a valid chain");
+        return
+    };
+    if crl_report_certs.len() != 1 || crl_report_certs.ee_cert() != &state.root_ca_report {
         log::error!("CRL invalidly signed");
         return;
     }

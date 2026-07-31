@@ -83,17 +83,20 @@ fn main() {
         panic!("CTL does not contain any data")
     };
 
-    let ctl_report = security_store.security_report(ctl)
+    let ctl_report = security_store.security_report(ctl, chrono::Utc::now())
         .expect("Unable to generate security report for CTL");
 
-    if *ctl_report.provider_service() != c_its::security::certs::ProviderService::CTL {
+    if ctl_report.provider_service() != c_its::security::perms::ProviderService::CTL {
         panic!("CTL message is not declared as a CTl service message");
     }
     if !ctl_report.signature_verifies() {
         panic!("Signature over CTL does not verify");
     }
-    let ctl_report_certs = ctl_report.certificates();
-    if ctl_report_certs.len() != 1 || ctl_report_certs[0] != tlm_report {
+    let Some(ctl_report_certs) = ctl_report.validated_chain() else {
+        log::error!("CTL not signed with a valid chain");
+        return
+    };
+    if ctl_report_certs.len() != 1 || ctl_report_certs.ee_cert() != &tlm_report {
         panic!("CTL invalidly signed");
     }
 

@@ -80,13 +80,35 @@ pub enum InnerData<'a> {
         security_authorized: bool,
     },
     #[serde(rename = "denm")]
-    DENM { data: serde_json::Value },
+    DENM {
+        data: serde_json::Value,
+        security_authorized: bool,
+    },
     #[serde(rename = "mapem")]
-    MAPEM { data: serde_json::Value },
+    MAPEM {
+        data: serde_json::Value,
+        security_authorized: bool,
+    },
     #[serde(rename = "spatem")]
-    SPATEM { data: serde_json::Value },
+    SPATEM {
+        data: serde_json::Value,
+        security_authorized: bool,
+    },
     #[serde(rename = "ivim")]
-    IVIM { data: serde_json::Value },
+    IVIM {
+        data: serde_json::Value,
+        security_authorized: bool,
+    },
+    #[serde(rename = "tlc_req")]
+    TlcReq {
+        data: serde_json::Value,
+        security_authorized: bool,
+    },
+    #[serde(rename = "tlc_status")]
+    TlcStatus {
+        data: serde_json::Value,
+        security_authorized: bool,
+    },
     #[serde(rename = "raw")]
     Raw {
         #[serde(serialize_with = "c_its::util::serialize_bytes")]

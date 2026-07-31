@@ -35,6 +35,32 @@ fn test_leap_seconds() {
     assert_eq!(time, recalculated_time);
 }
 
+pub fn decode_ita2(bits: &rasn::types::FixedBitString<10>) -> Result<alloc::string::String, u8> {
+    bits[..10]
+        .chunks_exact(5)
+        .map(|chunk| {
+            let code = chunk
+                .iter()
+                .fold(0u8, |value, bit| (value << 1) | u8::from(*bit));
+
+            ita2_letter(code).ok_or(code)
+        })
+        .collect()
+}
+
+fn ita2_letter(code: u8) -> Option<char> {
+    Some(match code {
+        3 => 'A', 25 => 'B', 14 => 'C',  9 => 'D',
+        1 => 'E', 13 => 'F', 26 => 'G', 20 => 'H',
+        6 => 'I', 11 => 'J', 15 => 'K', 18 => 'L',
+        28 => 'M', 12 => 'N', 24 => 'O', 22 => 'P',
+        23 => 'Q', 10 => 'R',  5 => 'S', 16 => 'T',
+        7 => 'U', 30 => 'V', 19 => 'W', 29 => 'X',
+        21 => 'Y', 17 => 'Z',
+        _ => return None, // NUL, FIGS, LTRS, controls, etc.
+    })
+}
+
 pub fn serialize_mac_address<S: serde::Serializer>(
     mac: &ieee80211::mac_parser::MACAddress,
     ser: S,

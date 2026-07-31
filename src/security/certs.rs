@@ -2,25 +2,6 @@ use alloc::string::ToString;
 use core::fmt::Display;
 use ecdsa::signature::digest::Digest;
 
-lazy_static::lazy_static! {
-    pub(crate) static ref PSID_CAM: rasn::types::Integer = rasn::types::Integer::from(36);
-    pub(crate) static ref PSID_DENM: rasn::types::Integer = rasn::types::Integer::from(37);
-    pub(crate) static ref PSID_TLM: rasn::types::Integer = rasn::types::Integer::from(137);
-    pub(crate) static ref PSID_RLT: rasn::types::Integer = rasn::types::Integer::from(138);
-    pub(crate) static ref PSID_IVIM: rasn::types::Integer = rasn::types::Integer::from(139);
-    pub(crate) static ref PSID_TLC_REQ: rasn::types::Integer = rasn::types::Integer::from(140);
-    pub(crate) static ref PSID_GN_MGMT: rasn::types::Integer = rasn::types::Integer::from(141);
-    pub(crate) static ref PSID_CRL: rasn::types::Integer = rasn::types::Integer::from(622);
-    pub(crate) static ref PSID_CERT_REQ: rasn::types::Integer = rasn::types::Integer::from(623);
-    pub(crate) static ref PSID_CTL: rasn::types::Integer = rasn::types::Integer::from(624);
-    pub(crate) static ref PSID_TLC_STATUS: rasn::types::Integer = rasn::types::Integer::from(637);
-    pub(crate) static ref PSID_VRU: rasn::types::Integer = rasn::types::Integer::from(638);
-    pub(crate) static ref PSID_CP: rasn::types::Integer = rasn::types::Integer::from(639);
-    pub(crate) static ref PSID_MR: rasn::types::Integer = rasn::types::Integer::from(1618);
-    pub(crate) static ref PSID_POI: rasn::types::Integer = rasn::types::Integer::from(1619);
-    pub(crate) static ref PSID_SA: rasn::types::Integer = rasn::types::Integer::from(540801);
-}
-
 pub fn time32_to_utc(
     time32: &rasn_its::ieee1609dot2::base_types::Time32,
 ) -> chrono::DateTime<chrono::Utc> {
@@ -389,6 +370,46 @@ impl CertificateReport {
             .next()
     }
 
+    pub fn get_rlt_permission(&self) -> Option<&super::perms::RLTPermissions> {
+        self.app_permissions
+            .iter()
+            .filter_map(|p| match p {
+                super::perms::AppPermission::RLT(c) => Some(c),
+                _ => None,
+            })
+            .next()
+    }
+
+    pub fn get_ivim_permission(&self) -> Option<&super::perms::IVIMPermissions> {
+        self.app_permissions
+            .iter()
+            .filter_map(|p| match p {
+                super::perms::AppPermission::IVIM(c) => Some(c),
+                _ => None,
+            })
+            .next()
+    }
+
+    pub fn get_tlc_req_permission(&self) -> Option<&super::perms::TlcReqPermissions> {
+        self.app_permissions
+            .iter()
+            .filter_map(|p| match p {
+                super::perms::AppPermission::TlcReq(c) => Some(c),
+                _ => None,
+            })
+            .next()
+    }
+
+    pub fn get_tlm_permission(&self) -> Option<&super::perms::TLMPermissions> {
+        self.app_permissions
+            .iter()
+            .filter_map(|p| match p {
+                super::perms::AppPermission::TLM(c) => Some(c),
+                _ => None,
+            })
+            .next()
+    }
+
     pub fn get_ctl_permission(&self) -> Option<&super::perms::CertificateTrustListPermissions> {
         self.app_permissions
             .iter()
@@ -397,6 +418,15 @@ impl CertificateReport {
                 _ => None,
             })
             .next()
+    }
+
+    pub fn has_tlc_status_permission(&self) -> bool {
+        for p in self.app_permissions.iter() {
+            if let super::perms::AppPermission::TlcStatus(_) = p {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn has_crl_permission(&self) -> bool {

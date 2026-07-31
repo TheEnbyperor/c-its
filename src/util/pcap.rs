@@ -234,29 +234,61 @@ fn build_inner_data<'a>(
         }
     } else if port == 2002 {
         match rasn::uper::decode::<c_its::asn::denm_pdu_description::DENM>(data) {
-            Ok(cam) => data_structures::InnerData::DENM {
-                data: serde_json::from_str(&rasn::jer::encode(&cam).unwrap()).unwrap(),
+            Ok(denm) => data_structures::InnerData::DENM {
+                data: serde_json::from_str(&rasn::jer::encode(&denm).unwrap()).unwrap(),
+                security_authorized: security_report
+                    .map(|r| c_its::security::perms::denm_authorized(&denm, r))
+                    .unwrap_or(false),
             },
             Err(_) => data_structures::InnerData::Raw { data },
         }
     } else if port == 2003 {
         match rasn::uper::decode::<c_its::asn::mapem_pdu_descriptions::MAPEM>(data) {
-            Ok(cam) => data_structures::InnerData::MAPEM {
-                data: serde_json::from_str(&rasn::jer::encode(&cam).unwrap()).unwrap(),
+            Ok(mapem) => data_structures::InnerData::MAPEM {
+                data: serde_json::from_str(&rasn::jer::encode(&mapem).unwrap()).unwrap(),
+                security_authorized: security_report
+                    .map(|r| c_its::security::perms::rlt_authorized(&mapem, r))
+                    .unwrap_or(false),
             },
             Err(_) => data_structures::InnerData::Raw { data },
         }
     } else if port == 2004 {
         match rasn::uper::decode::<c_its::asn::spatem_pdu_descriptions::SPATEM>(data) {
-            Ok(cam) => data_structures::InnerData::SPATEM {
-                data: serde_json::from_str(&rasn::jer::encode(&cam).unwrap()).unwrap(),
+            Ok(spatem) => data_structures::InnerData::SPATEM {
+                data: serde_json::from_str(&rasn::jer::encode(&spatem).unwrap()).unwrap(),
+                security_authorized: security_report
+                    .map(|r| c_its::security::perms::tlm_authorized(&spatem, r))
+                    .unwrap_or(false),
             },
             Err(_) => data_structures::InnerData::Raw { data },
         }
     } else if port == 2006 {
         match rasn::uper::decode::<c_its::asn::ivim_pdu_descriptions::IVIM>(data) {
-            Ok(cam) => data_structures::InnerData::IVIM {
+            Ok(ivim) => data_structures::InnerData::IVIM {
+                data: serde_json::from_str(&rasn::jer::encode(&ivim).unwrap()).unwrap(),
+                security_authorized: security_report
+                    .map(|r| c_its::security::perms::ivim_authorized(&ivim, r))
+                    .unwrap_or(false),
+            },
+            Err(_) => data_structures::InnerData::Raw { data },
+        }
+    } else if port == 2007 {
+        match rasn::uper::decode::<c_its::asn::srem_pdu_descriptions::SREM>(data) {
+            Ok(srem) => data_structures::InnerData::TlcReq {
+                data: serde_json::from_str(&rasn::jer::encode(&srem).unwrap()).unwrap(),
+                security_authorized: security_report
+                    .map(|r| c_its::security::perms::tlc_req_authorized(&srem, r))
+                    .unwrap_or(false),
+            },
+            Err(_) => data_structures::InnerData::Raw { data },
+        }
+    } else if port == 2008 {
+        match rasn::uper::decode::<c_its::asn::ssem_pdu_descriptions::SSEM>(data) {
+            Ok(cam) => data_structures::InnerData::TlcStatus {
                 data: serde_json::from_str(&rasn::jer::encode(&cam).unwrap()).unwrap(),
+                security_authorized: security_report
+                    .map(|r| c_its::security::perms::tlc_status_authorized(r))
+                    .unwrap_or(false),
             },
             Err(_) => data_structures::InnerData::Raw { data },
         }

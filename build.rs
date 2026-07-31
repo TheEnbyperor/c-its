@@ -50,10 +50,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     )
     .add_asn_sources_by_path(
+        (&[
+            std::path::PathBuf::from("asn1/ETSI_ITS_DSRC_AddGrpC.asn"),
+        ])
+            .iter(),
+    )
+    .set_output_mode(rasn_compiler::OutputMode::SingleFile(
+        out_path.join("dsrc_reg.rs"),
+    ))
+    .compile()?;
+
+    rasn_compiler::Compiler::<rasn_compiler::prelude::RasnBackend, _>::new_with_config(
+        rasn_compiler::prelude::RasnConfig {
+            generate_from_impls: true,
+            no_std_compliant_bindings: true,
+            ..Default::default()
+        },
+    )
+    .add_asn_sources_by_path(
         (&[std::path::PathBuf::from("asn1/SPATEM-PDU-Descriptions.asn")]).iter(),
     )
     .set_output_mode(rasn_compiler::OutputMode::SingleFile(
         out_path.join("spatem.rs"),
+    ))
+    .compile()?;
+
+    rasn_compiler::Compiler::<rasn_compiler::prelude::RasnBackend, _>::new_with_config(
+        rasn_compiler::prelude::RasnConfig {
+            generate_from_impls: true,
+            no_std_compliant_bindings: true,
+            ..Default::default()
+        },
+    )
+    .add_asn_sources_by_path(
+        (&[
+            std::path::PathBuf::from("asn1/SREM-PDU-Descriptions.asn"),
+            std::path::PathBuf::from("asn1/SSEM-PDU-Descriptions.asn")
+        ]).iter(),
+    )
+    .set_output_mode(rasn_compiler::OutputMode::SingleFile(
+        out_path.join("tlc.rs"),
     ))
     .compile()?;
 

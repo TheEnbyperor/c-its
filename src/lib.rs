@@ -16,8 +16,10 @@ pub mod asn {
     include!(concat!(env!("OUT_DIR"), "/ivim.rs"));
     include!(concat!(env!("OUT_DIR"), "/mapem.rs"));
     include!(concat!(env!("OUT_DIR"), "/spatem.rs"));
+    include!(concat!(env!("OUT_DIR"), "/tlc.rs"));
     include!(concat!(env!("OUT_DIR"), "/efc.rs"));
     include!(concat!(env!("OUT_DIR"), "/gdd.rs"));
+    include!(concat!(env!("OUT_DIR"), "/dsrc_reg.rs"));
     // include!(concat!(env!("OUT_DIR"), "/1609dot2.rs"));
     include!("../asn_rs/ts_102941.rs");
 }

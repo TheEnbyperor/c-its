@@ -40,6 +40,10 @@ pub struct Chain {
 }
 
 impl Chain {
+    pub fn len(&self) -> usize {
+        self.certs.len()
+    }
+    
     pub fn ee_cert(&self) -> &super::certs::CertificateReport {
         &self.certs[self.certs.len()-1].cert
     }
