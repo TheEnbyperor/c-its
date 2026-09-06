@@ -179,8 +179,8 @@ pub struct LongPositionVector {
     pub heading_deg: f32,
 }
 
-impl From<&geo_networking::LongPositionVector> for LongPositionVector {
-    fn from(v: &geo_networking::LongPositionVector) -> Self {
+impl LongPositionVector {
+    pub fn from_geo_networking(v: &geo_networking::LongPositionVector, now: &chrono::DateTime<chrono::Utc>) -> Self {
         Self {
             address: GnAddress {
                 manually_configured: v.address.manually_configured,
@@ -209,7 +209,7 @@ impl From<&geo_networking::LongPositionVector> for LongPositionVector {
             accurate_position: v.accurate_position,
             acquisition_time_tai_ms: v.acquisition_time.0,
             acquisition_time_utc: c_its::util::chrono_from_tai(
-                &v.acquisition_time.to_datetime(&chrono::Utc::now()),
+                &v.acquisition_time.to_datetime(now),
             ),
             speed_ms: v.speed_ms,
             heading_deg: v.heading_deg,

@@ -149,7 +149,7 @@ fn handle_802_11_frame(
             header: match &frame_data.data {
                 geo_networking::PacketData::GeoAnycast(p) => {
                     data_structures::PacketHeader::GeoAnycast {
-                        source_position: (&p.source_position).into(),
+                        source_position: data_structures::LongPositionVector::from_geo_networking(&p.source_position, &timestamp),
                         sequence: p.sequence,
                         area_centre: p.area_centre,
                         area: p.area,
@@ -157,7 +157,7 @@ fn handle_802_11_frame(
                 }
                 geo_networking::PacketData::GeoBroadcast(p) => {
                     data_structures::PacketHeader::GeoBroadcast {
-                        source_position: (&p.source_position).into(),
+                        source_position: data_structures::LongPositionVector::from_geo_networking(&p.source_position, &timestamp),
                         sequence: p.sequence,
                         area_centre: p.area_centre,
                         area: p.area,
@@ -165,20 +165,20 @@ fn handle_802_11_frame(
                 }
                 geo_networking::PacketData::MultiHopBroadcast(p) => {
                     data_structures::PacketHeader::MultiHopBroadcast {
-                        source_position: (&p.source_position).into(),
+                        source_position: data_structures::LongPositionVector::from_geo_networking(&p.source_position, &timestamp),
                         sequence: p.sequence,
                     }
                 }
                 geo_networking::PacketData::SingleHopBroadcast(p) => {
                     data_structures::PacketHeader::SingleHopBroadcast {
-                        source_position: (&p.source_position).into(),
+                        source_position: data_structures::LongPositionVector::from_geo_networking(&p.source_position, &timestamp),
                         dcc: geo_networking::DistributedCongestionControlData::parse(
                             &p.media_dependent,
                         ),
                     }
                 }
                 geo_networking::PacketData::Beacon(p) => data_structures::PacketHeader::Beacon {
-                    source_position: (&p.source_position).into(),
+                    source_position: data_structures::LongPositionVector::from_geo_networking(&p.source_position, &timestamp),
                 },
             },
             data: match frame_inner_data {
