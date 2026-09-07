@@ -10,6 +10,13 @@ pub fn time32_to_utc(
     )
 }
 
+pub fn utc_to_time32(
+    ts: &chrono::DateTime<chrono::Utc>
+) -> rasn_its::ieee1609dot2::base_types::Time32 {
+    let tai_time: crate::geo_networking::GnTaiTime = crate::util::tai_from_chrono(ts);
+    rasn_its::ieee1609dot2::base_types::Time32(tai_time.as_secs() as u32)
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Certificate<'a>(
     pub(crate) alloc::borrow::Cow<'a, rasn_its::ts103097::EtsiTs103097Certificate>,

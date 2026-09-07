@@ -1,20 +1,20 @@
 lazy_static::lazy_static! {
-    pub(crate) static ref PSID_CAM: rasn::types::Integer = rasn::types::Integer::from(36);
-    pub(crate) static ref PSID_DENM: rasn::types::Integer = rasn::types::Integer::from(37);
-    pub(crate) static ref PSID_TLM: rasn::types::Integer = rasn::types::Integer::from(137);
-    pub(crate) static ref PSID_RLT: rasn::types::Integer = rasn::types::Integer::from(138);
-    pub(crate) static ref PSID_IVIM: rasn::types::Integer = rasn::types::Integer::from(139);
-    pub(crate) static ref PSID_TLC_REQ: rasn::types::Integer = rasn::types::Integer::from(140);
-    pub(crate) static ref PSID_GN_MGMT: rasn::types::Integer = rasn::types::Integer::from(141);
-    pub(crate) static ref PSID_CRL: rasn::types::Integer = rasn::types::Integer::from(622);
-    pub(crate) static ref PSID_CERT_REQ: rasn::types::Integer = rasn::types::Integer::from(623);
-    pub(crate) static ref PSID_CTL: rasn::types::Integer = rasn::types::Integer::from(624);
-    pub(crate) static ref PSID_TLC_STATUS: rasn::types::Integer = rasn::types::Integer::from(637);
-    pub(crate) static ref PSID_VRU: rasn::types::Integer = rasn::types::Integer::from(638);
-    pub(crate) static ref PSID_CP: rasn::types::Integer = rasn::types::Integer::from(639);
-    pub(crate) static ref PSID_MR: rasn::types::Integer = rasn::types::Integer::from(1618);
-    pub(crate) static ref PSID_POI: rasn::types::Integer = rasn::types::Integer::from(1619);
-    pub(crate) static ref PSID_SA: rasn::types::Integer = rasn::types::Integer::from(540801);
+    pub static ref PSID_CAM: rasn::types::Integer = rasn::types::Integer::from(36);
+    pub static ref PSID_DENM: rasn::types::Integer = rasn::types::Integer::from(37);
+    pub static ref PSID_TLM: rasn::types::Integer = rasn::types::Integer::from(137);
+    pub static ref PSID_RLT: rasn::types::Integer = rasn::types::Integer::from(138);
+    pub static ref PSID_IVIM: rasn::types::Integer = rasn::types::Integer::from(139);
+    pub static ref PSID_TLC_REQ: rasn::types::Integer = rasn::types::Integer::from(140);
+    pub static ref PSID_GN_MGMT: rasn::types::Integer = rasn::types::Integer::from(141);
+    pub static ref PSID_CRL: rasn::types::Integer = rasn::types::Integer::from(622);
+    pub static ref PSID_CERT_REQ: rasn::types::Integer = rasn::types::Integer::from(623);
+    pub static ref PSID_CTL: rasn::types::Integer = rasn::types::Integer::from(624);
+    pub static ref PSID_TLC_STATUS: rasn::types::Integer = rasn::types::Integer::from(637);
+    pub static ref PSID_VRU: rasn::types::Integer = rasn::types::Integer::from(638);
+    pub static ref PSID_CP: rasn::types::Integer = rasn::types::Integer::from(639);
+    pub static ref PSID_MR: rasn::types::Integer = rasn::types::Integer::from(1618);
+    pub static ref PSID_POI: rasn::types::Integer = rasn::types::Integer::from(1619);
+    pub static ref PSID_SA: rasn::types::Integer = rasn::types::Integer::from(540801);
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
@@ -43,7 +43,7 @@ impl serde::Serialize for ProviderService {
         match self {
             ProviderService::CAM => serializer.serialize_str("cam"),
             ProviderService::DENM => serializer.serialize_str("denm"),
-            ProviderService::TLM => serializer.serialize_str("ctl"),
+            ProviderService::TLM => serializer.serialize_str("tlm"),
             ProviderService::RLT => serializer.serialize_str("rlt"),
             ProviderService::IVIM => serializer.serialize_str("ivim"),
             ProviderService::CTL => serializer.serialize_str("ctl"),
@@ -408,11 +408,11 @@ impl TlcReqPermissions {
             requestor_dot: ssp[2] & 0x04 != 0,
             requestor_transit: ssp[2] & 0x02 != 0,
             requestor_slow_moving: ssp[2] & 0x01 != 0,
-            requestor_cyclist: ssp[2] & 0x80 != 0,
-            requestor_pedestrian: ssp[2] & 0x40 != 0,
-            requestor_military: ssp[2] & 0x20 != 0,
-            requestor_tram: ssp[2] & 0x10 != 0,
-            ocit: ssp[2] & 0x08 != 0,
+            requestor_cyclist: ssp[3] & 0x80 != 0,
+            requestor_pedestrian: ssp[3] & 0x40 != 0,
+            requestor_military: ssp[3] & 0x20 != 0,
+            requestor_tram: ssp[3] & 0x10 != 0,
+            ocit: ssp[3] & 0x08 != 0,
             _orig_value: ssp.0.to_vec(),
         }
     }
@@ -446,7 +446,7 @@ impl CertificateRevocationListPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord, Default)]
 pub struct CertificateTrustListPermissions {
     pub tlm: bool,
     pub root_ca: bool,
@@ -458,6 +458,23 @@ pub struct CertificateTrustListPermissions {
 }
 
 impl CertificateTrustListPermissions {
+    pub fn new(
+        tlm: bool,
+        root_ca: bool,
+        enrollment_authority: bool,
+        authorization_authority: bool,
+        distribution_centre: bool,
+    ) -> Self{
+        Self {
+            tlm,
+            root_ca,
+            enrollment_authority,
+            authorization_authority,
+            distribution_centre,
+            _orig_value: alloc::vec::Vec::new(),
+        }
+    }
+
     fn from_bitmap_v1(ssp: &rasn_its::ieee1609dot2::base_types::BitmapSsp) -> Self {
         Self {
             tlm: ssp[1] & 0x80 != 0,
@@ -467,6 +484,26 @@ impl CertificateTrustListPermissions {
             distribution_centre: ssp[1] & 0x08 != 0,
             _orig_value: ssp.0.to_vec(),
         }
+    }
+
+    pub fn as_bitmap(&self) -> rasn_its::ieee1609dot2::base_types::BitmapSsp {
+        let mut v = 0;
+        if self.tlm {
+            v |= 0x80;
+        }
+        if self.root_ca {
+            v |= 0x40;
+        }
+        if self.authorization_authority {
+            v |= 0x20;
+        }
+        if self.authorization_authority {
+            v |= 0x01;
+        }
+        if self.distribution_centre {
+            v |= 0x08;
+        }
+        rasn_its::ieee1609dot2::base_types::BitmapSsp([0x01, v].into())
     }
 }
 

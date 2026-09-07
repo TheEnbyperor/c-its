@@ -1,3 +1,4 @@
+use core::ops::Deref;
 use ecdsa::signature::digest::Digest;
 use elliptic_curve::sec1::ToSec1Point;
 use serde::ser::SerializeStruct;
@@ -30,6 +31,128 @@ impl TryFrom<rasn_its::ieee1609dot2::base_types::HashAlgorithm> for HashAlgorith
 
     fn try_from(value: rasn_its::ieee1609dot2::base_types::HashAlgorithm) -> Result<Self, Self::Error> {
         Self::try_from(&value)
+    }
+}
+
+impl Into<rasn_its::ieee1609dot2::base_types::HashAlgorithm> for HashAlgorithm {
+    fn into(self) -> rasn_its::ieee1609dot2::base_types::HashAlgorithm {
+        match self {
+            Self::Sha256 => rasn_its::ieee1609dot2::base_types::HashAlgorithm::Sha256,
+            Self::Sha384 => rasn_its::ieee1609dot2::base_types::HashAlgorithm::Sha384,
+            Self::Sm3 => rasn_its::ieee1609dot2::base_types::HashAlgorithm::Sm3,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum PrivateKey {
+    P256(ecdsa::SigningKey<p256::NistP256>),
+    P384(ecdsa::SigningKey<p384::NistP384>),
+    BP256(ecdsa::SigningKey<bp256::r1::BrainpoolP256r1>),
+    BP384(ecdsa::SigningKey<bp384::r1::BrainpoolP384r1>),
+    SM2(sm2::dsa::SigningKey),
+}
+
+impl PrivateKey {
+    pub fn public_key(&self) -> PublicKey {
+        match self {
+            Self::P256(p) => PublicKey::P256(p.verifying_key().clone()),
+            Self::P384(p) => PublicKey::P384(p.verifying_key().clone()),
+            Self::BP256(p) => PublicKey::BP256(p.verifying_key().clone()),
+            Self::BP384(p) => PublicKey::BP384(p.verifying_key().clone()),
+            Self::SM2(p) => PublicKey::SM2(p.verifying_key().clone()),
+        }
+    }
+
+    #[cfg(feature = "build-binary")]
+    pub fn as_bytes_pem(&self) -> alloc::vec::Vec<u8> {
+        use elliptic_curve::pkcs8::EncodePrivateKey;
+        match self {
+            Self::P256(p) => p.to_pkcs8_pem(Default::default()).unwrap().as_bytes().to_vec(),
+            Self::P384(p) => p.to_pkcs8_pem(Default::default()).unwrap().as_bytes().to_vec(),
+            Self::BP256(p) => p.to_pkcs8_pem(Default::default()).unwrap().as_bytes().to_vec(),
+            Self::BP384(p) => p.to_pkcs8_pem(Default::default()).unwrap().as_bytes().to_vec(),
+            Self::SM2(p) => {
+                let sk = sm2::SecretKey::from(p.as_nonzero_scalar());
+                sk.to_pkcs8_pem(Default::default()).unwrap().as_bytes().to_vec()
+            }
+        }
+    }
+
+    pub fn sign(&self, hash: HashAlgorithm, tbs_bytes: &[u8], certificate: Option<&super::certs::CertificateReport>) -> Option<Signature> {
+        use ecdsa::signature::hazmat::PrehashSigner;
+
+        let signer_info = match certificate {
+            Some(c) => c.encoded(),
+            None => &[]
+        };
+        let pre_hashed = match hash {
+            HashAlgorithm::Sha256 => {
+                let mut h = sha2::Sha256::new();
+                h.update(sha2::Sha256::digest(tbs_bytes).as_slice());
+                h.update(sha2::Sha256::digest(signer_info).as_slice());
+                h.finalize().to_vec()
+            },
+            HashAlgorithm::Sha384 => {
+                let mut h = sha2::Sha384::new();
+                h.update(sha2::Sha384::digest(tbs_bytes).as_slice());
+                h.update(sha2::Sha384::digest(signer_info).as_slice());
+                h.finalize().to_vec()
+            },
+            HashAlgorithm::Sm3 => {
+                let Self::SM2(pk) = self else {
+                    return None;
+                };
+                let h = sm3::Sm3::digest(signer_info);
+                let Ok(z) = sm2_hash_z(if certificate.is_some() {
+                    h.as_slice()
+                } else {
+                    b"1234567812345678"
+                }, pk.verifying_key()) else {
+                    return None;
+                };
+                sm3::Sm3::new_with_prefix(z)
+                    .chain_update(tbs_bytes)
+                    .finalize().to_vec()
+            }
+        };
+
+        match self {
+            Self::P256(pk) => {
+                let s = pk.sign_prehash(&pre_hashed).ok()?;
+                Some(Signature::P256(s))
+            },
+            Self::P384(pk) => {
+                let s = pk.sign_prehash(&pre_hashed).ok()?;
+                Some(Signature::P384(s))
+            },
+            Self::BP256(pk) => {
+                let (s, _) = ecdsa::hazmat::sign_prehashed_rfc6979::<
+                    bp256::r1::BrainpoolP256r1,
+                    sha2::Sha256,
+                >(
+                    pk.as_nonzero_scalar(),
+                    &pre_hashed,
+                    &[],
+                );
+                Some(Signature::BP256(s))
+            },
+            Self::BP384(pk) => {
+                let (s, _) = ecdsa::hazmat::sign_prehashed_rfc6979::<
+                    bp384::r1::BrainpoolP384r1,
+                    sha2::Sha384,
+                >(
+                    pk.as_nonzero_scalar(),
+                    &pre_hashed,
+                    &[],
+                );
+                Some(Signature::BP384(s))
+            },
+            Self::SM2(pk) => {
+                let s = pk.sign_prehash(&pre_hashed).ok()?;
+                Some(Signature::SM2(s))
+            },
+        }
     }
 }
 
@@ -143,7 +266,7 @@ fn parse_bp384_r1_curve_point(key: &rasn_its::ieee1609dot2::base_types::EccP384C
 }
 
 impl PublicKey {
-    pub(crate) fn parse(key: &rasn_its::ieee1609dot2::base_types::PublicVerificationKey) -> Result<Self, &'static str> {
+    pub fn parse(key: &rasn_its::ieee1609dot2::base_types::PublicVerificationKey) -> Result<Self, &'static str> {
         use elliptic_curve::sec1::FromSec1Point;
         match key {
             rasn_its::ieee1609dot2::base_types::PublicVerificationKey::EcdsaNistP256(key) => {
@@ -168,6 +291,61 @@ impl PublicKey {
                 Ok(Self::SM2(sm2::dsa::VerifyingKey::from_affine("", ap).map_err(|_| "invalid curve point")?))
             }
             _ => Err("unsupported public key type")
+        }
+    }
+
+    pub fn encode(&self) -> rasn_its::ieee1609dot2::base_types::PublicVerificationKey {
+        match self {
+            Self::P256(pk) => {
+                let point = pk.to_sec1_point(true);
+                rasn_its::ieee1609dot2::base_types::PublicVerificationKey::EcdsaNistP256(
+                    match point.tag() {
+                        sec1::point::Tag::CompressedEvenY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY0(point.x().unwrap().0.into()),
+                        sec1::point::Tag::CompressedOddY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY1(point.x().unwrap().0.into()),
+                        _ => unreachable!(),
+                    }
+                )
+            }
+            Self::P384(pk) => {
+                let point = pk.to_sec1_point(true);
+                rasn_its::ieee1609dot2::base_types::PublicVerificationKey::EcdsaNistP384(
+                    match point.tag() {
+                        sec1::point::Tag::CompressedEvenY => rasn_its::ieee1609dot2::base_types::EccP384CurvePoint::CompressedY0(point.x().unwrap().0.into()),
+                        sec1::point::Tag::CompressedOddY => rasn_its::ieee1609dot2::base_types::EccP384CurvePoint::CompressedY1(point.x().unwrap().0.into()),
+                        _ => unreachable!(),
+                    }
+                )
+            }
+            Self::BP256(pk) => {
+                let point = pk.to_sec1_point(true);
+                rasn_its::ieee1609dot2::base_types::PublicVerificationKey::EcdsaBrainpoolP256r1(
+                    match point.tag() {
+                        sec1::point::Tag::CompressedEvenY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY0(point.x().unwrap().0.into()),
+                        sec1::point::Tag::CompressedOddY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY1(point.x().unwrap().0.into()),
+                        _ => unreachable!(),
+                    }
+                )
+            }
+            Self::BP384(pk) => {
+                let point = pk.to_sec1_point(true);
+                rasn_its::ieee1609dot2::base_types::PublicVerificationKey::EcdsaBrainpoolP384r1(
+                    match point.tag() {
+                        sec1::point::Tag::CompressedEvenY => rasn_its::ieee1609dot2::base_types::EccP384CurvePoint::CompressedY0(point.x().unwrap().0.into()),
+                        sec1::point::Tag::CompressedOddY => rasn_its::ieee1609dot2::base_types::EccP384CurvePoint::CompressedY1(point.x().unwrap().0.into()),
+                        _ => unreachable!(),
+                    }
+                )
+            }
+            Self::SM2(pk) => {
+                let point = pk.to_sec1_point(true);
+                rasn_its::ieee1609dot2::base_types::PublicVerificationKey::EcsigSm2(
+                    match point.tag() {
+                        sec1::point::Tag::CompressedEvenY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY0(point.x().unwrap().0.into()),
+                        sec1::point::Tag::CompressedOddY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY1(point.x().unwrap().0.into()),
+                        _ => unreachable!(),
+                    }
+                )
+            }
         }
     }
 }
@@ -344,7 +522,42 @@ fn sm2_hash_z(distid: &[u8], public_key: &impl AsRef<sm2::AffinePoint>) -> ellip
 }
 
 impl Signature {
-    pub(crate) fn parse(sig: &rasn_its::ieee1609dot2::base_types::Signature) -> Result<Self, &'static str> {
+    pub fn as_signature(&self) -> rasn_its::ieee1609dot2::base_types::Signature {
+       match self {
+           Self::P256(sig) => rasn_its::ieee1609dot2::base_types::Signature::EcdsaNistP256(
+               rasn_its::ieee1609dot2::base_types::EcdsaP256Signature {
+                   r_sig: rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::XOnly(sig.r().to_bytes().0.into()),
+                   s_sig: sig.s().to_bytes().0.into(),
+               }
+           ),
+           Self::P384(sig) => rasn_its::ieee1609dot2::base_types::Signature::EcdsaNistP384(
+               rasn_its::ieee1609dot2::base_types::EcdsaP384Signature {
+                   r_sig: rasn_its::ieee1609dot2::base_types::EccP384CurvePoint::XOnly(sig.r().to_bytes().0.into()),
+                   s_sig: sig.s().to_bytes().0.into(),
+               }
+           ),
+           Self::BP256(sig) => rasn_its::ieee1609dot2::base_types::Signature::EcdsaBrainpoolP256r1(
+               rasn_its::ieee1609dot2::base_types::EcdsaP256Signature {
+                   r_sig: rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::XOnly(sig.r().to_bytes().0.into()),
+                   s_sig: sig.s().to_bytes().0.into(),
+               }
+           ),
+           Self::BP384(sig) => rasn_its::ieee1609dot2::base_types::Signature::EcdsaBrainpoolP384r1(
+               rasn_its::ieee1609dot2::base_types::EcdsaP384Signature {
+                   r_sig: rasn_its::ieee1609dot2::base_types::EccP384CurvePoint::XOnly(sig.r().to_bytes().0.into()),
+                   s_sig: sig.s().to_bytes().0.into(),
+               }
+           ),
+           Self::SM2(sig) => rasn_its::ieee1609dot2::base_types::Signature::Sm2(
+               rasn_its::ieee1609dot2::base_types::EcsigP256Signature {
+                   r_sig: sig.r().to_bytes().0.into(),
+                   s_sig: sig.s().to_bytes().0.into(),
+               }
+           ),
+       }
+    }
+
+    pub fn parse(sig: &rasn_its::ieee1609dot2::base_types::Signature) -> Result<Self, &'static str> {
         use p256::elliptic_curve::ops::Reduce;
 
         match sig {

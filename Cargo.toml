@@ -35,9 +35,10 @@ primeorder = "0.14.0-rc.15"
 num-traits = "0.2.19"
 hex = { version = "0.4.3", optional = true }
 url = { version = "2.5.8", default-features = false }
+inquire = { version = "0.9.4", optional = true }
 
 [features]
-build-binary = ["pretty_env_logger", "pcap-parser", "serde_json", "chrono/now", "reqwest", "hex"]
+build-binary = ["pretty_env_logger", "pcap-parser", "serde_json", "chrono/now", "reqwest", "hex", "inquire", "ecdsa/pkcs8"]
 
 [[bin]]
 name = "c-its-pcap"
@@ -57,6 +58,11 @@ required-features = ["build-binary"]
 [[bin]]
 name = "c-its-download-int-certs"
 path = "src/util/download_int_certs.rs"
+required-features = ["build-binary"]
+
+[[bin]]
+name = "c-its-generate-root"
+path = "src/util/generate_root.rs"
 required-features = ["build-binary"]
 
 [build-dependencies]
