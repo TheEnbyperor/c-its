@@ -28,7 +28,6 @@ async fn main() {
 
     let root_cert = c_its::security::certs::Certificate::parse(&std::fs::read(&args.root_cert).unwrap()).unwrap();
     let root_key = c_its::security::crypto::PrivateKey::from_bytes_pem(&std::fs::read(&args.root_key).unwrap()).unwrap();
-    let root_cert_report = root_cert.report().unwrap();
     let revoked_certs = std::fs::read_to_string(&args.revoked_certs).expect("failed to read revoked certificates list");
 
     let now = chrono::Utc::now();
@@ -56,10 +55,10 @@ async fn main() {
         }).unwrap(),
         &now,
         &root_key,
-        &root_cert_report
+        &root_cert
     );
 
-    let id8 = hex::encode_upper(root_cert_report.id8());
+    let id8 = hex::encode_upper(root_cert.id8().unwrap());
     println!("Generated CRL for root with ID8 {}", id8);
 
     let crl_bytes = rasn::oer::encode(&crl).unwrap();
