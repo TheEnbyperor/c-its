@@ -350,13 +350,7 @@ impl SecurityStore {
                 .header_info
                 .generation_time
                 .as_ref()
-                .map(|gt| {
-                    let secs = gt.0 / 1_000_000;
-                    let nanos = (gt.0 % 1_000_000) * 1_000;
-                    crate::util::chrono_from_tai(
-                        &crate::geo_networking::GnTaiTime::new(secs as i64, nanos as u32).unwrap(),
-                    )
-                }),
+                .map(super::certs::time64_to_utc),
             signature_verifies,
             possible_chains,
             validated_chain_index,

@@ -36,9 +36,14 @@ num-traits = "0.2.19"
 hex = { version = "0.4.3", optional = true }
 url = { version = "2.5.8", default-features = false }
 inquire = { version = "0.9.4", optional = true }
+clap = { version = "4", optional = true, features = ["derive"] }
+pem-rfc7468 = { version = "1", optional = true }
+aws-config = { version = "=1.11.0", default-features = false, features = ["behavior-version-latest", "rt-tokio", "default-https-client"], optional = true }
+aws-sdk-s3 = { version = "1", optional = true }
+tokio = { version = "1", features = ["full"], optional = true }
 
 [features]
-build-binary = ["pretty_env_logger", "pcap-parser", "serde_json", "chrono/now", "reqwest", "hex", "inquire", "ecdsa/pkcs8"]
+build-binary = ["pretty_env_logger", "pcap-parser", "serde_json", "chrono/now", "reqwest", "hex", "inquire", "ecdsa/pkcs8", "clap", "pem-rfc7468", "aws-config", "aws-sdk-s3", "tokio"]
 
 [[bin]]
 name = "c-its-pcap"
@@ -63,6 +68,26 @@ required-features = ["build-binary"]
 [[bin]]
 name = "c-its-generate-root"
 path = "src/util/generate_root.rs"
+required-features = ["build-binary"]
+
+[[bin]]
+name = "c-its-generate-ctl"
+path = "src/util/generate_ctl.rs"
+required-features = ["build-binary"]
+
+[[bin]]
+name = "c-its-generate-crl"
+path = "src/util/generate_crl.rs"
+required-features = ["build-binary"]
+
+[[bin]]
+name = "c-its-generate-aa"
+path = "src/util/generate_aa.rs"
+required-features = ["build-binary"]
+
+[[bin]]
+name = "c-its-generate-at"
+path = "src/util/generate_at.rs"
 required-features = ["build-binary"]
 
 [build-dependencies]

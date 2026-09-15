@@ -320,7 +320,7 @@ fn sync_crl(state: &mut State) {
         return;
     }
     let Some(crl_report_certs) = crl_report.validated_chain() else {
-        log::error!("CTL not signed with a valid chain");
+        log::error!("CRL not signed with a valid chain");
         return
     };
     if crl_report_certs.len() != 1 || crl_report_certs.ee_cert() != &state.root_ca_report {
@@ -405,7 +405,7 @@ fn main() {
         let root_ca_dc = reqwest::Url::parse(&root_ca_meta.distribution_centre).unwrap();
 
         let mut security_store = c_its::security::SecurityStore::new();
-        security_store.insert_cert(root_ca);
+        security_store.add_root_ca(root_ca).unwrap();
 
         let mut state = State {
             now,

@@ -10,11 +10,29 @@ pub fn time32_to_utc(
     )
 }
 
+pub fn time64_to_utc(
+    time64: &rasn_its::ieee1609dot2::base_types::Time64,
+) -> chrono::DateTime<chrono::Utc> {
+    let secs = time64.0 / 1_000_000;
+    let nanos = (time64.0 % 1_000_000) * 1_000;
+    crate::util::chrono_from_tai(
+        &crate::geo_networking::GnTaiTime::new(secs as i64, nanos as u32).unwrap(),
+    )
+}
+
 pub fn utc_to_time32(
     ts: &chrono::DateTime<chrono::Utc>
 ) -> rasn_its::ieee1609dot2::base_types::Time32 {
     let tai_time: crate::geo_networking::GnTaiTime = crate::util::tai_from_chrono(ts);
     rasn_its::ieee1609dot2::base_types::Time32(tai_time.as_secs() as u32)
+}
+
+pub fn utc_to_time64(
+    ts: &chrono::DateTime<chrono::Utc>
+) -> rasn_its::ieee1609dot2::base_types::Time64 {
+    let tai_time: crate::geo_networking::GnTaiTime = crate::util::tai_from_chrono(ts);
+    let t = (tai_time.as_secs() as u64 * 1_000_000) + (tai_time.subsec_nanos() as u64 / 1_000);
+    rasn_its::ieee1609dot2::base_types::Time64(t)
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -27,6 +45,10 @@ impl Certificate<'_> {
         Certificate(alloc::borrow::Cow::Borrowed(cert))
     }
 
+    pub fn new_owned(cert: rasn_its::ts103097::EtsiTs103097Certificate) -> Certificate<'static> {
+        Certificate(alloc::borrow::Cow::Owned(cert))
+    }
+
     pub fn parse(data: &[u8]) -> Result<Self, &'static str> {
         let cert: rasn_its::ts103097::EtsiTs103097Certificate =
             rasn::oer::decode(data).map_err(|_| "failed to decode certificate")?;
@@ -35,6 +57,14 @@ impl Certificate<'_> {
 
     pub fn to_bytes(&self) -> alloc::vec::Vec<u8> {
         rasn::oer::encode(&self.0).unwrap()
+    }
+
+    pub fn as_cert(&self) -> &rasn_its::ts103097::EtsiTs103097Certificate {
+        &self.0
+    }
+
+    pub fn to_cert(&self) -> rasn_its::ts103097::EtsiTs103097Certificate {
+        self.0.clone().into_owned()
     }
 
     pub(crate) fn to_owned(&self) -> Certificate<'static> {

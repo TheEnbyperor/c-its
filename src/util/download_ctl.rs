@@ -1,4 +1,3 @@
-use std::io::Write;
 use std::str::FromStr;
 
 const CPOC_BASE_URL: &'static str = "https://cpoc.jrc.ec.europa.eu/L0/";
@@ -53,7 +52,7 @@ fn main() {
     }
 
     let mut security_store = c_its::security::SecurityStore::new();
-    security_store.insert_cert(tlm_cert);
+    security_store.add_root_ca(tlm_cert).unwrap();
 
     let id8_hex = hex::encode_upper(tlm_report.id8());
     println!("Requesting CTL for TLM certificate {} ({})", hostname, id8_hex);

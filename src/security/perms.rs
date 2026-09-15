@@ -144,6 +144,54 @@ impl CAMPermissions {
             _orig_value: ssp.0.to_vec(),
         }
     }
+
+    pub fn as_bitmap(&self) -> rasn_its::ieee1609dot2::base_types::BitmapSsp {
+        let mut v1 = 0;
+        let mut v2 = 0;
+        if self.cen_dsrc_tolling_zone {
+            v1 |= 0x80;
+        }
+        if self.public_transport {
+            v1 |= 0x40;
+        }
+        if self.special_transport {
+            v1 |= 0x20;
+        }
+        if self.dangerous_goods {
+            v1 |= 0x10;
+        }
+        if self.roadworks {
+            v1 |= 0x08;
+        }
+        if self.rescue {
+            v1 |= 0x04;
+        }
+        if self.emergency {
+            v1 |= 0x02;
+        }
+        if self.safety_car {
+            v1 |= 0x01;
+        }
+        if self.closed_lanes {
+            v2 |= 0x80;
+        }
+        if self.request_right_of_way {
+            v2 |= 0x40;
+        }
+        if self.request_free_crossing {
+            v2 |= 0x20;
+        }
+        if self.no_passing {
+            v2 |= 0x10;
+        }
+        if self.no_passing_for_trucks {
+            v2 |= 0x08;
+        }
+        if self.speed_limit {
+            v2 |= 0x04;
+        }
+        rasn_its::ieee1609dot2::base_types::BitmapSsp([0x01, v1, v2].into())
+    }
 }
 
 #[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
@@ -498,7 +546,7 @@ impl CertificateTrustListPermissions {
             v |= 0x20;
         }
         if self.authorization_authority {
-            v |= 0x01;
+            v |= 0x10;
         }
         if self.distribution_centre {
             v |= 0x08;

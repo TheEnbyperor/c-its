@@ -1,4 +1,3 @@
-use core::ops::Deref;
 use ecdsa::signature::digest::Digest;
 use elliptic_curve::sec1::ToSec1Point;
 use serde::ser::SerializeStruct;
@@ -54,6 +53,14 @@ pub enum PrivateKey {
 }
 
 impl PrivateKey {
+    pub fn hash_algorithm(&self) -> HashAlgorithm {
+        match self {
+            Self::P256(_) | Self::BP256(_) => HashAlgorithm::Sha256,
+            Self::P384(_) | Self::BP384(_) => HashAlgorithm::Sha384,
+            Self::SM2(_) => HashAlgorithm::Sm3,
+        }
+    }
+
     pub fn public_key(&self) -> PublicKey {
         match self {
             Self::P256(p) => PublicKey::P256(p.verifying_key().clone()),
@@ -61,6 +68,61 @@ impl PrivateKey {
             Self::BP256(p) => PublicKey::BP256(p.verifying_key().clone()),
             Self::BP384(p) => PublicKey::BP384(p.verifying_key().clone()),
             Self::SM2(p) => PublicKey::SM2(p.verifying_key().clone()),
+        }
+    }
+
+    #[cfg(feature = "build-binary")]
+    pub fn from_bytes_pem(b: &[u8]) -> Result<Self, &'static str> {
+        use elliptic_curve::pkcs8::DecodePrivateKey;
+        use elliptic_curve::pkcs8::AssociatedOid;
+        use pem_rfc7468::PemLabel;
+        use sec1::der::Decode;
+
+        let (label, der) = pem_rfc7468::decode_vec(&b)
+            .map_err(|_| "invalid PEM data")?;
+        if label != elliptic_curve::pkcs8::PrivateKeyInfoRef::PEM_LABEL {
+            return Err("not a private key PEM block");
+        }
+        let info = elliptic_curve::pkcs8::PrivateKeyInfoRef::from_der(&der)
+            .map_err(|_| "invalid private key")?;
+        if info.algorithm.oid == elliptic_curve::ALGORITHM_OID {
+            let curve_oid = info
+                .algorithm
+                .parameters
+                .ok_or("missing EC parameters")?
+                .decode_as::<elliptic_curve::pkcs8::ObjectIdentifier>()
+                .map_err(|_| "invalid EC parameters")?;
+
+            match curve_oid {
+                p256::NistP256::OID => {
+                    let key = p256::SecretKey::from_pkcs8_der(&der)
+                        .map_err(|_| "invalid P-256 key")?;
+                    Ok(Self::P256(key.into()))
+                }
+                p384::NistP384::OID => {
+                    let key = p384::SecretKey::from_pkcs8_der(&der)
+                        .map_err(|_| "invalid P-384 key")?;
+                    Ok(Self::P384(key.into()))
+                }
+                bp256::r1::BrainpoolP256r1::OID => {
+                    let key = bp256::r1::SecretKey::from_pkcs8_der(&der)
+                        .map_err(|_| "invalid BP-256 key")?;
+                    Ok(Self::BP256(key.into()))
+                }
+                bp384::r1::BrainpoolP384r1::OID => {
+                    let key = bp384::r1::SecretKey::from_pkcs8_der(&der)
+                        .map_err(|_| "invalid BP-384 key")?;
+                    Ok(Self::BP384(key.into()))
+                }
+                sm2::Sm2::OID => {
+                    let key = sm2::SecretKey::from_pkcs8_der(&der)
+                        .map_err(|_| "invalid SM2 key")?;
+                    Ok(Self::SM2(sm2::dsa::SigningKey::from_nonzero_scalar("", key.to_nonzero_scalar()).unwrap()))
+                }
+                _ => Err("unsupported curve"),
+            }
+        } else {
+            Err("unsupported curve")
         }
     }
 
@@ -79,14 +141,14 @@ impl PrivateKey {
         }
     }
 
-    pub fn sign(&self, hash: HashAlgorithm, tbs_bytes: &[u8], certificate: Option<&super::certs::CertificateReport>) -> Option<Signature> {
+    pub fn sign(&self, tbs_bytes: &[u8], certificate: Option<&super::certs::Certificate>) -> Option<Signature> {
         use ecdsa::signature::hazmat::PrehashSigner;
 
         let signer_info = match certificate {
-            Some(c) => c.encoded(),
-            None => &[]
+            Some(c) => c.to_bytes(),
+            None => alloc::vec::Vec::default(),
         };
-        let pre_hashed = match hash {
+        let pre_hashed = match self.hash_algorithm() {
             HashAlgorithm::Sha256 => {
                 let mut h = sha2::Sha256::new();
                 h.update(sha2::Sha256::digest(tbs_bytes).as_slice());
@@ -347,6 +409,51 @@ impl PublicKey {
                 )
             }
         }
+    }
+
+    pub fn encode_encryption(&self) -> Result<rasn_its::ieee1609dot2::base_types::PublicEncryptionKey, &'static str> {
+        Ok(match self {
+            Self::P256(pk) => {
+                let point = pk.to_sec1_point(true);
+                rasn_its::ieee1609dot2::base_types::PublicEncryptionKey::builder()
+                    .public_key(rasn_its::ieee1609dot2::base_types::BasePublicEncryptionKey::EciesNistP256(
+                        match point.tag() {
+                            sec1::point::Tag::CompressedEvenY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY0(point.x().unwrap().0.into()),
+                            sec1::point::Tag::CompressedOddY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY1(point.x().unwrap().0.into()),
+                            _ => unreachable!(),
+                        }
+                    ))
+                    .supported_symm_alg(rasn_its::ieee1609dot2::base_types::SymmAlgorithm::Aes128Ccm)
+                    .build()
+            }
+            Self::BP256(pk) => {
+                let point = pk.to_sec1_point(true);
+                rasn_its::ieee1609dot2::base_types::PublicEncryptionKey::builder()
+                    .public_key(rasn_its::ieee1609dot2::base_types::BasePublicEncryptionKey::EciesBrainpoolP256r1(
+                        match point.tag() {
+                            sec1::point::Tag::CompressedEvenY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY0(point.x().unwrap().0.into()),
+                            sec1::point::Tag::CompressedOddY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY1(point.x().unwrap().0.into()),
+                            _ => unreachable!(),
+                        }
+                    ))
+                    .supported_symm_alg(rasn_its::ieee1609dot2::base_types::SymmAlgorithm::Aes128Ccm)
+                    .build()
+            }
+            Self::SM2(pk) => {
+                let point = pk.to_sec1_point(true);
+                rasn_its::ieee1609dot2::base_types::PublicEncryptionKey::builder()
+                    .public_key(rasn_its::ieee1609dot2::base_types::BasePublicEncryptionKey::EcencSm2(
+                        match point.tag() {
+                            sec1::point::Tag::CompressedEvenY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY0(point.x().unwrap().0.into()),
+                            sec1::point::Tag::CompressedOddY => rasn_its::ieee1609dot2::base_types::EccP256CurvePoint::CompressedY1(point.x().unwrap().0.into()),
+                            _ => unreachable!(),
+                        }
+                    ))
+                    .supported_symm_alg(rasn_its::ieee1609dot2::base_types::SymmAlgorithm::Sm4Ccm)
+                    .build()
+            },
+            _ => return Err("unsupported curve for encryption keys")
+        })
     }
 }
 
