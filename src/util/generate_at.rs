@@ -39,7 +39,6 @@ fn main() {
 
     let aa_cert = c_its::security::certs::Certificate::parse(&std::fs::read(&args.aa_cert).unwrap()).unwrap();
     let aa_key = c_its::security::crypto::PrivateKey::from_bytes_pem(&std::fs::read(&args.aa_key).unwrap()).unwrap();
-    let aa_cert_report = aa_cert.report().unwrap();
 
     let cert_info = pki_certs::CertInfo::collect_info("authorization ticket", false);
     let valid_from = chrono::Utc::now();
@@ -94,7 +93,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let cert = pki_certs::sign_cert(tbs_cert, &aa_key, Some(&aa_cert_report));
+    let cert = pki_certs::sign_cert(tbs_cert, &aa_key, Some(&aa_cert));
     let cert_report = cert.report().unwrap();
     let id8 = hex::encode_upper(cert_report.id8());
     println!("Generated authorization ticket certificate with ID8 {}", id8);

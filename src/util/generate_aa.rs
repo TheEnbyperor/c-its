@@ -16,7 +16,6 @@ fn main() {
 
     let root_cert = c_its::security::certs::Certificate::parse(&std::fs::read(&args.root_cert).unwrap()).unwrap();
     let root_key = c_its::security::crypto::PrivateKey::from_bytes_pem(&std::fs::read(&args.root_key).unwrap()).unwrap();
-    let root_cert_report = root_cert.report().unwrap();
 
     let cert_info = pki_certs::CertInfo::collect_info("AA", true);
     let valid_from = chrono::Utc::now();
@@ -64,7 +63,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let cert = pki_certs::sign_cert(tbs_cert, &root_key, Some(&root_cert_report));
+    let cert = pki_certs::sign_cert(tbs_cert, &root_key, Some(&root_cert));
     let cert_report = cert.report().unwrap();
     let id8 = hex::encode_upper(cert_report.id8());
     println!("Generated AA certificate with ID8 {}", id8);
