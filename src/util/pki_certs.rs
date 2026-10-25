@@ -8,32 +8,44 @@ pub enum KeyAlg {
 }
 
 impl KeyAlg {
-    pub fn generate_private_key(&self) -> c_its::security::crypto::PrivateKey {
+    pub fn generate_private_key(&self) -> c_its::security::crypto::PrivateKey<c_its::security::std_crypto::StdCrypto> {
         use elliptic_curve::Generate;
         match self {
             Self::P256 => {
-                c_its::security::crypto::PrivateKey::P256(p256::SecretKey::generate().into())
+                c_its::security::crypto::PrivateKey::P256(c_its::security::std_crypto::P256PrivateKey::from(
+                    <ecdsa::SigningKey<p256::NistP256>>::from(p256::SecretKey::generate())
+                ))
             }
             Self::P384 => {
-                c_its::security::crypto::PrivateKey::P384(p384::SecretKey::generate().into())
+                c_its::security::crypto::PrivateKey::P384(c_its::security::std_crypto::P384PrivateKey::from(
+                    <ecdsa::SigningKey<_>>::from(p384::SecretKey::generate())
+                ))
             }
             Self::BP256 => {
-                c_its::security::crypto::PrivateKey::BP256(bp256::r1::SecretKey::generate().into())
+                c_its::security::crypto::PrivateKey::BP256(c_its::security::std_crypto::BP256PrivateKey::from(
+                    <ecdsa::SigningKey<_>>::from(bp256::r1::SecretKey::generate())
+                ))
             }
             Self::BP384 => {
-                c_its::security::crypto::PrivateKey::BP384(bp384::r1::SecretKey::generate().into())
+                c_its::security::crypto::PrivateKey::BP384(c_its::security::std_crypto::BP384PrivateKey::from(
+                    <ecdsa::SigningKey<_>>::from(bp384::r1::SecretKey::generate())
+                ))
             }
         }
     }
 
-    pub fn generate_private_encryption_key(&self) -> c_its::security::crypto::PrivateKey {
+    pub fn generate_private_encryption_key(&self) -> c_its::security::crypto::PrivateKey<c_its::security::std_crypto::StdCrypto> {
         use elliptic_curve::Generate;
         match self {
             Self::P256 | Self::P384 => {
-                c_its::security::crypto::PrivateKey::P256(p256::SecretKey::generate().into())
+                c_its::security::crypto::PrivateKey::P256(c_its::security::std_crypto::P256PrivateKey::from(
+                    <ecdsa::SigningKey<p256::NistP256>>::from(p256::SecretKey::generate())
+                ))
             }
             Self::BP256 | Self::BP384 => {
-                c_its::security::crypto::PrivateKey::BP256(bp256::r1::SecretKey::generate().into())
+                c_its::security::crypto::PrivateKey::P384(c_its::security::std_crypto::P384PrivateKey::from(
+                    <ecdsa::SigningKey<_>>::from(p384::SecretKey::generate())
+                ))
             }
         }
     }
@@ -88,7 +100,7 @@ impl CertInfo {
 
 pub fn sign_cert(
     tbs_cert: rasn_its::ieee1609dot2::ToBeSignedCertificate,
-    signing_key: &c_its::security::crypto::PrivateKey,
+    signing_key: &c_its::security::crypto::PrivateKey<c_its::security::std_crypto::StdCrypto>,
     issuing_certificate: Option<&c_its::security::certs::Certificate>,
 ) -> c_its::security::certs::Certificate<'static> {
     let tbs_bytes = rasn::oer::encode(&tbs_cert).unwrap();
@@ -141,7 +153,7 @@ pub fn sign_cert(
 pub fn sign_message<T: rasn::Decode>(
     data: &[u8],
     timestamp: &chrono::DateTime<chrono::Utc>,
-    signing_key: &c_its::security::crypto::PrivateKey,
+    signing_key: &c_its::security::crypto::PrivateKey<c_its::security::std_crypto::StdCrypto>,
     certificate: &c_its::security::certs::Certificate,
 ) -> rasn_its::ts103097::EtsiTs103097DataSigned<T> {
     let tbs = rasn_its::ieee1609dot2::ToBeSignedData {

@@ -13,26 +13,30 @@ rasn = "0.28.13"
 tai-time = { version = "1.0.0", features = ["chrono"], default-features = false }
 rasn-its = "0.28.13"
 chrono = { version = "0.4.45", features = ["serde"], default-features = false }
-serde = { version = "1.0.228", features = ["derive"], default-features = false }
-serde_json =  { version = "1.0.150", optional = true }
 reqwest =  { version = "0.13.4", optional = true, features = ["blocking"] }
 base64 =  { version = "0.22.1", default-features = false, features = ["alloc"] }
 lazy_static = { version = "1.5.0", features = ["spin_no_std"] }
 generic-array = "1.4.3"
-p384 = "0.14.0-rc.15"
-elliptic-curve = "0.14.1"
-p256 = "0.14.0-rc.15"
-bp256 = { version = "0.14.0-rc.15", features = ["ecdsa", "arithmetic"] }
-bp384 = { version = "0.14.0-rc.15", features = ["ecdsa", "arithmetic"] }
-sm2 = { version = "0.14.0-rc.15", features = ["dsa"] }
-ecdsa = "0.17.0-rc.23"
-sec1 = "0.8.1"
 sha2 = "0.11.0"
 crypto-bigint = "0.7.5"
 hybrid-array = "0.4.13"
 sm3 = "0.5.0"
-primeorder = "0.14.0-rc.15"
-num-traits = "0.2.19"
+num-traits = { version = "0.2.19", default-features = false }
+digest = "0.11.3"
+
+serde = { version = "1.0.228", features = ["derive"], optional = true, default-features = false }
+serde_json =  { version = "1.0.150", optional = true }
+
+elliptic-curve = { version = "0.14.1", optional = true }
+primeorder = { version = "0.14.0-rc.15", optional = true }
+p256 = { version = "0.14.0-rc.15", optional = true }
+p384 = { version = "0.14.0-rc.15", optional = true }
+bp256 = { version = "0.14.0-rc.15", optional = true, features = ["ecdsa", "arithmetic"] }
+bp384 = { version = "0.14.0-rc.15", optional = true, features = ["ecdsa", "arithmetic"] }
+sm2 = { version = "0.14.0-rc.15", optional = true, features = ["dsa"] }
+sec1 = { version = "0.8.1", optional = true }
+ecdsa = { version = "0.17.0-rc.23", optional = true }
+
 hex = { version = "0.4.3", optional = true }
 url = { version = "2.5.8", default-features = false }
 inquire = { version = "0.9.4", optional = true }
@@ -43,7 +47,9 @@ aws-sdk-s3 = { version = "1", optional = true }
 tokio = { version = "1", features = ["full"], optional = true }
 
 [features]
-build-binary = ["pretty_env_logger", "pcap-parser", "serde_json", "chrono/now", "reqwest", "hex", "inquire", "ecdsa/pkcs8", "clap", "pem-rfc7468", "aws-config", "aws-sdk-s3", "tokio"]
+std = ["elliptic-curve", "primeorder", "p256", "p384", "bp256", "bp384", "sm2", "sec1", "ecdsa", "hex"]
+json = ["serde", "serde_json", "hex"]
+build-binary = ["std", "json", "pretty_env_logger", "pcap-parser", "chrono/now", "reqwest", "inquire", "ecdsa/pkcs8", "clap", "pem-rfc7468", "aws-config", "aws-sdk-s3", "tokio"]
 
 [[bin]]
 name = "c-its-pcap"

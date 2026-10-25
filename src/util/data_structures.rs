@@ -16,7 +16,7 @@ pub struct GeoNetworkingFrame<'a> {
     pub is_mobile: bool,
     pub traffic_class: geo_networking::TrafficClass,
     pub header: PacketHeader,
-    pub security: Option<c_its::security::SecurityReport>,
+    pub security: Option<c_its::security::SecurityReport<c_its::security::std_crypto::StdCrypto>>,
     pub data: Option<PacketData<'a>>,
 }
 

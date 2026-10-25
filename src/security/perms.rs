@@ -38,6 +38,7 @@ pub enum ProviderService {
     Other(u64),
 }
 
+#[cfg(feature = "json")]
 impl serde::Serialize for ProviderService {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
@@ -104,7 +105,8 @@ impl From<&rasn_its::ieee1609dot2::base_types::Psid> for ProviderService {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Default, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct CAMPermissions {
     pub cen_dsrc_tolling_zone: bool,
     pub public_transport: bool,
@@ -120,7 +122,7 @@ pub struct CAMPermissions {
     pub no_passing: bool,
     pub no_passing_for_trucks: bool,
     pub speed_limit: bool,
-    #[serde(skip_serializing)]
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     _orig_value: alloc::vec::Vec<u8>,
 }
 
@@ -194,7 +196,8 @@ impl CAMPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct DENMPermissions {
     pub traffic_condition: bool,
     pub accident: bool,
@@ -224,7 +227,7 @@ pub struct DENMPermissions {
     pub aquaplaning: bool,
     pub public_transport_vehicle_approaching: bool,
     pub railway_level_crossing: bool,
-    #[serde(skip_serializing)]
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     _orig_value: alloc::vec::Vec<u8>,
 }
 
@@ -298,12 +301,13 @@ impl DENMPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct TLMPermissions {
     signal_phase_timing: bool,
     public_transport_prioritization_status: bool,
     maneuver_assisting_information: bool,
-    #[serde(skip_serializing)]
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     _orig_value: alloc::vec::Vec<u8>,
 }
 
@@ -318,11 +322,12 @@ impl TLMPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct RLTPermissions {
     intersections_geometry: bool,
     road_geometry: bool,
-    #[serde(skip_serializing)]
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     _orig_value: alloc::vec::Vec<u8>,
 }
 
@@ -341,8 +346,16 @@ pub struct IVIMProvider(crate::asn::efc_data_dictionary::Provider);
 
 impl core::cmp::Ord for IVIMProvider {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.0.country_code.0.cmp(&other.0.country_code.0)
-            .then_with(|| self.0.provider_identifier.0.cmp(&other.0.provider_identifier.0))
+        self.0
+            .country_code
+            .0
+            .cmp(&other.0.country_code.0)
+            .then_with(|| {
+                self.0
+                    .provider_identifier
+                    .0
+                    .cmp(&other.0.provider_identifier.0)
+            })
     }
 }
 
@@ -352,17 +365,22 @@ impl core::cmp::PartialOrd for IVIMProvider {
     }
 }
 
+#[cfg(feature = "json")]
 impl serde::Serialize for IVIMProvider {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
         let mut s = serializer.serialize_struct("Provider", 2)?;
-        s.serialize_field("country_code", &crate::util::decode_ita2(&self.0.country_code.0))?;
+        s.serialize_field(
+            "country_code",
+            &crate::util::decode_ita2(&self.0.country_code.0),
+        )?;
         s.serialize_field("provider_identifier", &self.0.provider_identifier.0)?;
         s.end()
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct IVIMPermissions {
     service_provider: IVIMProvider,
     vienna_convention_road_sign: bool,
@@ -381,7 +399,7 @@ pub struct IVIMPermissions {
     automated_vehicle: bool,
     map_location: bool,
     road_surface: bool,
-    #[serde(skip_serializing)]
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     _orig_value: alloc::vec::Vec<u8>,
 }
 
@@ -410,7 +428,8 @@ impl IVIMPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct TlcReqPermissions {
     signal_request: bool,
     requestor_public_transport: bool,
@@ -433,7 +452,7 @@ pub struct TlcReqPermissions {
     requestor_military: bool,
     requestor_tram: bool,
     ocit: bool,
-    #[serde(skip_serializing)]
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     _orig_value: alloc::vec::Vec<u8>,
 }
 
@@ -466,9 +485,10 @@ impl TlcReqPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct TlcStatusPermissions {
-    #[serde(skip_serializing)]
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     _orig_value: alloc::vec::Vec<u8>,
 }
 
@@ -480,9 +500,10 @@ impl TlcStatusPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct CertificateRevocationListPermissions {
-    #[serde(skip_serializing)]
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     _orig_value: alloc::vec::Vec<u8>,
 }
 
@@ -494,14 +515,15 @@ impl CertificateRevocationListPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Default)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct CertificateTrustListPermissions {
     pub tlm: bool,
     pub root_ca: bool,
     pub enrollment_authority: bool,
     pub authorization_authority: bool,
     pub distribution_centre: bool,
-    #[serde(skip_serializing)]
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     _orig_value: alloc::vec::Vec<u8>,
 }
 
@@ -512,7 +534,7 @@ impl CertificateTrustListPermissions {
         enrollment_authority: bool,
         authorization_authority: bool,
         distribution_centre: bool,
-    ) -> Self{
+    ) -> Self {
         Self {
             tlm,
             root_ca,
@@ -555,7 +577,8 @@ impl CertificateTrustListPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct CertificateRequestPermissions {
     pub enrollment_request: bool,
     pub authorization_request: bool,
@@ -564,7 +587,7 @@ pub struct CertificateRequestPermissions {
     pub authorization_validation_response: bool,
     pub enrollment_response: bool,
     pub ca_certificate_request: bool,
-    #[serde(skip_serializing)]
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     _orig_value: alloc::vec::Vec<u8>,
 }
 
@@ -583,54 +606,52 @@ impl CertificateRequestPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
-#[serde(tag = "type")]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+#[cfg_attr(feature = "json", serde(tag = "type"))]
 pub enum AppPermission {
-    #[serde(rename = "cam")]
+    #[cfg_attr(feature = "json", serde(rename = "cam"))]
     CAM(CAMPermissions),
-    #[serde(rename = "denm")]
+    #[cfg_attr(feature = "json", serde(rename = "denm"))]
     DENM(DENMPermissions),
-    #[serde(rename = "tlm")]
+    #[cfg_attr(feature = "json", serde(rename = "tlm"))]
     TLM(TLMPermissions),
-    #[serde(rename = "rlt")]
+    #[cfg_attr(feature = "json", serde(rename = "rlt"))]
     RLT(RLTPermissions),
-    #[serde(rename = "ivim")]
+    #[cfg_attr(feature = "json", serde(rename = "ivim"))]
     IVIM(IVIMPermissions),
-    #[serde(rename = "tlc_req")]
+    #[cfg_attr(feature = "json", serde(rename = "tlc_req"))]
     TlcReq(TlcReqPermissions),
-    #[serde(rename = "tlc_status")]
+    #[cfg_attr(feature = "json", serde(rename = "tlc_status"))]
     TlcStatus(TlcStatusPermissions),
-    #[serde(rename = "certificate_revocation_list")]
+    #[cfg_attr(feature = "json", serde(rename = "certificate_revocation_list"))]
     CertificateRevocationList(CertificateRevocationListPermissions),
-    #[serde(rename = "certificate_trust_list")]
+    #[cfg_attr(feature = "json", serde(rename = "certificate_trust_list"))]
     CertificateTrustList(CertificateTrustListPermissions),
-    #[serde(rename = "certificate_request")]
+    #[cfg_attr(feature = "json", serde(rename = "certificate_request"))]
     CertificateRequest(CertificateRequestPermissions),
-    #[serde(rename = "unknown_bitmap")]
+    #[cfg_attr(feature = "json", serde(rename = "unknown_bitmap"))]
     UnknownBitmap {
         psid: ProviderService,
-        #[serde(serialize_with = "crate::util::serialize_bytes_hex")]
+        #[cfg_attr(feature = "json", serde(serialize_with = "crate::util::serialize_bytes_hex"))]
         data: alloc::vec::Vec<u8>,
     },
-    #[serde(rename = "opaque")]
+    #[cfg_attr(feature = "json", serde(rename = "opaque"))]
     Opaque {
         psid: ProviderService,
-        #[serde(serialize_with = "crate::util::serialize_bytes_hex")]
+        #[cfg_attr(feature = "json", serde(serialize_with = "crate::util::serialize_bytes_hex"))]
         data: alloc::vec::Vec<u8>,
     },
-    #[serde(rename = "unsupported")]
-    Unsupported {
-        psid: ProviderService,
-    },
+    #[cfg_attr(feature = "json", serde(rename = "unsupported"))]
+    Unsupported { psid: ProviderService },
 }
 
-
-impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for super::perms::AppPermission {
+impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for AppPermission {
     fn from(value: &rasn_its::ieee1609dot2::base_types::PsidSsp) -> Self {
         if value.psid.0 == *PSID_CAM
             && let Some(rasn_its::ieee1609dot2::base_types::ServiceSpecificPermissions::BitmapSsp(
-                            ssp,
-                        )) = &value.ssp
+                ssp,
+            )) = &value.ssp
             && ssp.len() >= 1
         {
             if ssp[0] == 1 && ssp.len() == 3 {
@@ -640,8 +661,8 @@ impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for super::perms::AppPer
 
         if value.psid.0 == *PSID_DENM
             && let Some(rasn_its::ieee1609dot2::base_types::ServiceSpecificPermissions::BitmapSsp(
-                            ssp,
-                        )) = &value.ssp
+                ssp,
+            )) = &value.ssp
             && ssp.len() >= 1
         {
             if ssp[0] == 1 && ssp.len() == 4 {
@@ -654,8 +675,8 @@ impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for super::perms::AppPer
 
         if value.psid.0 == *PSID_TLM
             && let Some(rasn_its::ieee1609dot2::base_types::ServiceSpecificPermissions::BitmapSsp(
-                            ssp,
-                        )) = &value.ssp
+                ssp,
+            )) = &value.ssp
             && ssp.len() >= 1
         {
             if ssp[0] == 1 && ssp.len() == 2 {
@@ -665,8 +686,8 @@ impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for super::perms::AppPer
 
         if value.psid.0 == *PSID_RLT
             && let Some(rasn_its::ieee1609dot2::base_types::ServiceSpecificPermissions::BitmapSsp(
-                            ssp,
-                        )) = &value.ssp
+                ssp,
+            )) = &value.ssp
             && ssp.len() >= 1
         {
             if ssp[0] == 1 && ssp.len() == 2 {
@@ -676,8 +697,8 @@ impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for super::perms::AppPer
 
         if value.psid.0 == *PSID_IVIM
             && let Some(rasn_its::ieee1609dot2::base_types::ServiceSpecificPermissions::BitmapSsp(
-                            ssp,
-                        )) = &value.ssp
+                ssp,
+            )) = &value.ssp
             && ssp.len() >= 1
         {
             if ssp[0] == 1 && ssp.len() == 6 {
@@ -687,8 +708,8 @@ impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for super::perms::AppPer
 
         if value.psid.0 == *PSID_TLC_REQ
             && let Some(rasn_its::ieee1609dot2::base_types::ServiceSpecificPermissions::BitmapSsp(
-                            ssp,
-                        )) = &value.ssp
+                ssp,
+            )) = &value.ssp
             && ssp.len() >= 1
         {
             if ssp[0] == 2 && ssp.len() == 4 {
@@ -698,8 +719,8 @@ impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for super::perms::AppPer
 
         if value.psid.0 == *PSID_TLC_STATUS
             && let Some(rasn_its::ieee1609dot2::base_types::ServiceSpecificPermissions::BitmapSsp(
-                            ssp,
-                        )) = &value.ssp
+                ssp,
+            )) = &value.ssp
             && ssp.len() >= 1
         {
             if ssp[0] == 1 && ssp.len() == 1 {
@@ -709,19 +730,21 @@ impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for super::perms::AppPer
 
         if value.psid.0 == *PSID_CRL
             && let Some(rasn_its::ieee1609dot2::base_types::ServiceSpecificPermissions::BitmapSsp(
-                            ssp,
-                        )) = &value.ssp
+                ssp,
+            )) = &value.ssp
             && ssp.len() >= 1
         {
             if ssp[0] == 1 && ssp.len() == 1 {
-                return Self::CertificateRevocationList(CertificateRevocationListPermissions::from_bitmap_v1(ssp));
+                return Self::CertificateRevocationList(
+                    CertificateRevocationListPermissions::from_bitmap_v1(ssp),
+                );
             }
         }
 
         if value.psid.0 == *PSID_CTL
             && let Some(rasn_its::ieee1609dot2::base_types::ServiceSpecificPermissions::BitmapSsp(
-                            ssp,
-                        )) = &value.ssp
+                ssp,
+            )) = &value.ssp
             && ssp.len() >= 1
         {
             if ssp[0] == 1 && ssp.len() == 2 {
@@ -733,14 +756,14 @@ impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for super::perms::AppPer
 
         if value.psid.0 == *PSID_CERT_REQ
             && let Some(rasn_its::ieee1609dot2::base_types::ServiceSpecificPermissions::BitmapSsp(
-                            ssp,
-                        )) = &value.ssp
+                ssp,
+            )) = &value.ssp
             && ssp.len() >= 1
         {
             if ssp[0] == 1 && ssp.len() == 2 {
-                return Self::CertificateRequest(
-                    CertificateRequestPermissions::from_bitmap_v1(ssp),
-                );
+                return Self::CertificateRequest(CertificateRequestPermissions::from_bitmap_v1(
+                    ssp,
+                ));
             }
         }
 
@@ -764,28 +787,66 @@ impl From<&rasn_its::ieee1609dot2::base_types::PsidSsp> for super::perms::AppPer
     }
 }
 
-
 impl<'a> From<&'a AppPermission> for super::certs::RawAppPermission<'a> {
     fn from(value: &'a AppPermission) -> Self {
         match value {
-            AppPermission::CAM(p) => Self::Bitmap { psid: ProviderService::CAM, data: &p._orig_value },
-            AppPermission::DENM(p) => Self::Bitmap { psid: ProviderService::DENM, data: &p._orig_value },
-            AppPermission::TLM(p) => Self::Bitmap { psid: ProviderService::TLM, data: &p._orig_value },
-            AppPermission::RLT(p) => Self::Bitmap { psid: ProviderService::RLT, data: &p._orig_value },
-            AppPermission::IVIM(p) => Self::Bitmap { psid: ProviderService::IVIM, data: &p._orig_value },
-            AppPermission::TlcReq(p) => Self::Bitmap { psid: ProviderService::TLCReq, data: &p._orig_value },
-            AppPermission::TlcStatus(p) => Self::Bitmap { psid: ProviderService::TLCStat, data: &p._orig_value },
-            AppPermission::CertificateRevocationList(p) => Self::Bitmap { psid: ProviderService::CRL, data: &p._orig_value },
-            AppPermission::CertificateTrustList(p) => Self::Bitmap { psid: ProviderService::CTL, data: &p._orig_value },
-            AppPermission::CertificateRequest(p) => Self::Bitmap { psid: ProviderService::CertReq, data: &p._orig_value },
-            AppPermission::UnknownBitmap { psid, data } => Self::Bitmap { psid: *psid, data: &data },
-            AppPermission::Opaque { psid, data } => Self::Opaque { psid: *psid, data: &data },
+            AppPermission::CAM(p) => Self::Bitmap {
+                psid: ProviderService::CAM,
+                data: &p._orig_value,
+            },
+            AppPermission::DENM(p) => Self::Bitmap {
+                psid: ProviderService::DENM,
+                data: &p._orig_value,
+            },
+            AppPermission::TLM(p) => Self::Bitmap {
+                psid: ProviderService::TLM,
+                data: &p._orig_value,
+            },
+            AppPermission::RLT(p) => Self::Bitmap {
+                psid: ProviderService::RLT,
+                data: &p._orig_value,
+            },
+            AppPermission::IVIM(p) => Self::Bitmap {
+                psid: ProviderService::IVIM,
+                data: &p._orig_value,
+            },
+            AppPermission::TlcReq(p) => Self::Bitmap {
+                psid: ProviderService::TLCReq,
+                data: &p._orig_value,
+            },
+            AppPermission::TlcStatus(p) => Self::Bitmap {
+                psid: ProviderService::TLCStat,
+                data: &p._orig_value,
+            },
+            AppPermission::CertificateRevocationList(p) => Self::Bitmap {
+                psid: ProviderService::CRL,
+                data: &p._orig_value,
+            },
+            AppPermission::CertificateTrustList(p) => Self::Bitmap {
+                psid: ProviderService::CTL,
+                data: &p._orig_value,
+            },
+            AppPermission::CertificateRequest(p) => Self::Bitmap {
+                psid: ProviderService::CertReq,
+                data: &p._orig_value,
+            },
+            AppPermission::UnknownBitmap { psid, data } => Self::Bitmap {
+                psid: *psid,
+                data: &data,
+            },
+            AppPermission::Opaque { psid, data } => Self::Opaque {
+                psid: *psid,
+                data: &data,
+            },
             AppPermission::Unsupported { psid } => Self::Unsupported { psid: *psid },
         }
     }
 }
 
-pub fn cam_authorized(cam: &crate::asn::cam_pdu_descriptions::CAM, security_report: &super::message::SecurityReport) -> bool {
+pub fn cam_authorized<B: super::crypto_backend::CryptoBackend>(
+    cam: &crate::asn::cam_pdu_descriptions::CAM,
+    security_report: &super::message::SecurityReport<B>,
+) -> bool {
     if security_report.provider_service() != ProviderService::CAM {
         return false;
     }
@@ -806,22 +867,30 @@ pub fn cam_authorized(cam: &crate::asn::cam_pdu_descriptions::CAM, security_repo
         _ => {}
     }
     match &cam.cam.cam_parameters.special_vehicle_container {
-        Some(crate::asn::cam_pdu_descriptions::SpecialVehicleContainer::publicTransportContainer(_)) => {
+        Some(
+            crate::asn::cam_pdu_descriptions::SpecialVehicleContainer::publicTransportContainer(_),
+        ) => {
             if !cam_perms.public_transport {
                 return false;
             }
         }
-        Some(crate::asn::cam_pdu_descriptions::SpecialVehicleContainer::specialTransportContainer(_)) => {
+        Some(
+            crate::asn::cam_pdu_descriptions::SpecialVehicleContainer::specialTransportContainer(_),
+        ) => {
             if !cam_perms.special_transport {
                 return false;
             }
         }
-        Some(crate::asn::cam_pdu_descriptions::SpecialVehicleContainer::dangerousGoodsContainer(_)) => {
+        Some(
+            crate::asn::cam_pdu_descriptions::SpecialVehicleContainer::dangerousGoodsContainer(_),
+        ) => {
             if !cam_perms.dangerous_goods {
                 return false;
             }
         }
-        Some(crate::asn::cam_pdu_descriptions::SpecialVehicleContainer::roadWorksContainerBasic(rw)) => {
+        Some(
+            crate::asn::cam_pdu_descriptions::SpecialVehicleContainer::roadWorksContainerBasic(rw),
+        ) => {
             if !cam_perms.roadworks {
                 return false;
             }
@@ -852,10 +921,14 @@ pub fn cam_authorized(cam: &crate::asn::cam_pdu_descriptions::CAM, security_repo
                 return false;
             }
             if let Some(tr) = &sc.traffic_rule {
-                if (*tr == crate::asn::etsi_its_cdd::TrafficRule::noPassing) && !cam_perms.no_passing {
+                if (*tr == crate::asn::etsi_its_cdd::TrafficRule::noPassing)
+                    && !cam_perms.no_passing
+                {
                     return false;
                 }
-                if (*tr == crate::asn::etsi_its_cdd::TrafficRule::noPassingForTrucks) && !cam_perms.no_passing_for_trucks {
+                if (*tr == crate::asn::etsi_its_cdd::TrafficRule::noPassingForTrucks)
+                    && !cam_perms.no_passing_for_trucks
+                {
                     return false;
                 }
             }
@@ -868,7 +941,10 @@ pub fn cam_authorized(cam: &crate::asn::cam_pdu_descriptions::CAM, security_repo
     true
 }
 
-pub fn denm_authorized(denm: &crate::asn::denm_pdu_description::DENM, security_report: &super::message::SecurityReport) -> bool {
+pub fn denm_authorized<B: super::crypto_backend::CryptoBackend>(
+    denm: &crate::asn::denm_pdu_description::DENM,
+    security_report: &super::message::SecurityReport<B>,
+) -> bool {
     if security_report.provider_service() != ProviderService::DENM {
         return false;
     }
@@ -1029,7 +1105,10 @@ pub fn denm_authorized(denm: &crate::asn::denm_pdu_description::DENM, security_r
     true
 }
 
-pub fn rlt_authorized(mapem: &crate::asn::mapem_pdu_descriptions::MAPEM, security_report: &super::message::SecurityReport) -> bool {
+pub fn rlt_authorized<B: super::crypto_backend::CryptoBackend>(
+    mapem: &crate::asn::mapem_pdu_descriptions::MAPEM,
+    security_report: &super::message::SecurityReport<B>,
+) -> bool {
     if security_report.provider_service() != ProviderService::RLT {
         return false;
     }
@@ -1051,7 +1130,10 @@ pub fn rlt_authorized(mapem: &crate::asn::mapem_pdu_descriptions::MAPEM, securit
     true
 }
 
-pub fn tlm_authorized(spatem: &crate::asn::spatem_pdu_descriptions::SPATEM, security_report: &super::message::SecurityReport) -> bool {
+pub fn tlm_authorized<B: super::crypto_backend::CryptoBackend>(
+    spatem: &crate::asn::spatem_pdu_descriptions::SPATEM,
+    security_report: &super::message::SecurityReport<B>,
+) -> bool {
     if security_report.provider_service() != ProviderService::TLM {
         return false;
     }
@@ -1067,7 +1149,8 @@ pub fn tlm_authorized(spatem: &crate::asn::spatem_pdu_descriptions::SPATEM, secu
         if !intersection.states.0.is_empty() && !tlm_perms.signal_phase_timing {
             return false;
         }
-        if intersection.maneuver_assist_list.is_some() && !tlm_perms.maneuver_assisting_information {
+        if intersection.maneuver_assist_list.is_some() && !tlm_perms.maneuver_assisting_information
+        {
             return false;
         }
         for state in intersection.states.0.iter() {
@@ -1078,10 +1161,14 @@ pub fn tlm_authorized(spatem: &crate::asn::spatem_pdu_descriptions::SPATEM, secu
         if let Some(regional) = &intersection.regional {
             for ext in regional.iter() {
                 if ext.region_id == crate::asn::etsi_its_dsrc::ADD_GRP_C {
-                    let Ok(ext_val) = rasn::uper::decode::<crate::asn::etsi_its_dsrc_add_grp_c::IntersectionStateAddGrpC>(ext.reg_ext_value.as_bytes()) else {
+                    let Ok(ext_val) = rasn::uper::decode::<
+                        crate::asn::etsi_its_dsrc_add_grp_c::IntersectionStateAddGrpC,
+                    >(ext.reg_ext_value.as_bytes()) else {
                         return false;
                     };
-                    if ext_val.active_prioritizations.is_some() && !tlm_perms.public_transport_prioritization_status {
+                    if ext_val.active_prioritizations.is_some()
+                        && !tlm_perms.public_transport_prioritization_status
+                    {
                         return false;
                     }
                 }
@@ -1092,7 +1179,10 @@ pub fn tlm_authorized(spatem: &crate::asn::spatem_pdu_descriptions::SPATEM, secu
     true
 }
 
-pub fn ivim_authorized(ivim: &crate::asn::ivim_pdu_descriptions::IVIM, security_report: &super::message::SecurityReport) -> bool {
+pub fn ivim_authorized<B: super::crypto_backend::CryptoBackend>(
+    ivim: &crate::asn::ivim_pdu_descriptions::IVIM,
+    security_report: &super::message::SecurityReport<B>,
+) -> bool {
     if security_report.provider_service() != ProviderService::IVIM {
         return false;
     }
@@ -1149,12 +1239,12 @@ pub fn ivim_authorized(ivim: &crate::asn::ivim_pdu_descriptions::IVIM, security_
                                         },
                                         _ => {}
                                     }
-                                },
+                                }
                                 crate::asn::ivi::RSCodeCode::itisCodes(_) => {
                                     if !ivim_perms.itis_codes {
                                         return false;
                                     }
-                                },
+                                }
                                 _ => {}
                             }
                         }
@@ -1162,7 +1252,7 @@ pub fn ivim_authorized(ivim: &crate::asn::ivim_pdu_descriptions::IVIM, security_
                             return false;
                         }
                     }
-                },
+                }
                 crate::asn::ivi::IviContainer::rcc(_) => {
                     if !ivim_perms.road_configuration {
                         return false;
@@ -1201,7 +1291,10 @@ pub fn ivim_authorized(ivim: &crate::asn::ivim_pdu_descriptions::IVIM, security_
     true
 }
 
-pub fn tlc_req_authorized(srem: &crate::asn::srem_pdu_descriptions::SREM, security_report: &super::message::SecurityReport) -> bool {
+pub fn tlc_req_authorized<B: super::crypto_backend::CryptoBackend>(
+    srem: &crate::asn::srem_pdu_descriptions::SREM,
+    security_report: &super::message::SecurityReport<B>,
+) -> bool {
     if security_report.provider_service() != ProviderService::TLCReq {
         return false;
     }
@@ -1217,43 +1310,81 @@ pub fn tlc_req_authorized(srem: &crate::asn::srem_pdu_descriptions::SREM, securi
         return false;
     }
     if let Some(r_type) = &srem.srm.requestor.r_type {
-        if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::publicTransport && !tlc_req_perms.requestor_public_transport {
+        if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::publicTransport
+            && !tlc_req_perms.requestor_public_transport
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::specialTransport && !tlc_req_perms.requestor_special_transport {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::specialTransport
+            && !tlc_req_perms.requestor_special_transport
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::dangerousGoods && !tlc_req_perms.requestor_dangerous_goods {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::dangerousGoods
+            && !tlc_req_perms.requestor_dangerous_goods
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::roadWork && !tlc_req_perms.requestor_road_work {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::roadWork
+            && !tlc_req_perms.requestor_road_work
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::roadRescue && !tlc_req_perms.requestor_road_rescue {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::roadRescue
+            && !tlc_req_perms.requestor_road_rescue
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::emergency && !tlc_req_perms.requestor_emergency {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::emergency
+            && !tlc_req_perms.requestor_emergency
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::safetyCar && !tlc_req_perms.requestor_safety_car {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::safetyCar
+            && !tlc_req_perms.requestor_safety_car
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::truck && !tlc_req_perms.requestor_truck {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::truck
+            && !tlc_req_perms.requestor_truck
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::motorcycle && !tlc_req_perms.requestor_motorcycle {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::motorcycle
+            && !tlc_req_perms.requestor_motorcycle
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::police && !tlc_req_perms.requestor_police {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::police
+            && !tlc_req_perms.requestor_police
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::fire && !tlc_req_perms.requestor_fire {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::fire
+            && !tlc_req_perms.requestor_fire
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::ambulance && !tlc_req_perms.requestor_ambulance {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::ambulance
+            && !tlc_req_perms.requestor_ambulance
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::dot && !tlc_req_perms.requestor_dot {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::dot
+            && !tlc_req_perms.requestor_dot
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::transit && !tlc_req_perms.requestor_transit {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::transit
+            && !tlc_req_perms.requestor_transit
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::slowMoving && !tlc_req_perms.requestor_slow_moving {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::slowMoving
+            && !tlc_req_perms.requestor_slow_moving
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::cyclist && !tlc_req_perms.requestor_cyclist {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::cyclist
+            && !tlc_req_perms.requestor_cyclist
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::pedestrian && !tlc_req_perms.requestor_pedestrian {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::pedestrian
+            && !tlc_req_perms.requestor_pedestrian
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::military && !tlc_req_perms.requestor_military {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::military
+            && !tlc_req_perms.requestor_military
+        {
             return false;
-        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::tram && !tlc_req_perms.requestor_tram {
+        } else if r_type.role == crate::asn::etsi_its_dsrc::BasicVehicleRole::tram
+            && !tlc_req_perms.requestor_tram
+        {
             return false;
         }
     }
@@ -1264,7 +1395,9 @@ pub fn tlc_req_authorized(srem: &crate::asn::srem_pdu_descriptions::SREM, securi
     true
 }
 
-pub fn tlc_status_authorized(security_report: &super::message::SecurityReport) -> bool {
+pub fn tlc_status_authorized<B: super::crypto_backend::CryptoBackend>(
+    security_report: &super::message::SecurityReport<B>
+) -> bool {
     if security_report.provider_service() != ProviderService::TLCStat {
         return false;
     }

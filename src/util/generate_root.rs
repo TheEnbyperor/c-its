@@ -1,5 +1,3 @@
-use elliptic_curve::Generate;
-
 mod pki_certs;
 
 fn main() {
@@ -77,7 +75,7 @@ fn main() {
         .unwrap();
 
     let cert = pki_certs::sign_cert(tbs_cert, &private_key, None);
-    let cert_report = cert.report().unwrap();
+    let cert_report = cert.report::<c_its::security::std_crypto::StdCrypto>().unwrap();
     let id8 = hex::encode_upper(cert_report.id8());
     println!("Generated root certificate with ID8 {}", id8);
 

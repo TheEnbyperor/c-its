@@ -1,6 +1,5 @@
 use alloc::string::ToString;
-use core::fmt::Display;
-use ecdsa::signature::digest::Digest;
+use digest::Digest;
 
 pub fn time32_to_utc(
     time32: &rasn_its::ieee1609dot2::base_types::Time32,
@@ -21,14 +20,14 @@ pub fn time64_to_utc(
 }
 
 pub fn utc_to_time32(
-    ts: &chrono::DateTime<chrono::Utc>
+    ts: &chrono::DateTime<chrono::Utc>,
 ) -> rasn_its::ieee1609dot2::base_types::Time32 {
     let tai_time: crate::geo_networking::GnTaiTime = crate::util::tai_from_chrono(ts);
     rasn_its::ieee1609dot2::base_types::Time32(tai_time.as_secs() as u32)
 }
 
 pub fn utc_to_time64(
-    ts: &chrono::DateTime<chrono::Utc>
+    ts: &chrono::DateTime<chrono::Utc>,
 ) -> rasn_its::ieee1609dot2::base_types::Time64 {
     let tai_time: crate::geo_networking::GnTaiTime = crate::util::tai_from_chrono(ts);
     let t = (tai_time.as_secs() as u64 * 1_000_000) + (tai_time.subsec_nanos() as u64 / 1_000);
@@ -73,7 +72,7 @@ impl Certificate<'_> {
         ))
     }
 
-    pub(crate) fn public_key(&self) -> Result<super::crypto::PublicKey, &'static str> {
+    pub(crate) fn public_key<B: super::crypto_backend::CryptoBackend>(&self) -> Result<super::crypto::PublicKey<B>, &'static str> {
         if self.0.r#type == rasn_its::ieee1609dot2::CertificateType::Implicit {
             return Err("implicit certificates are not supported");
         }
@@ -153,7 +152,7 @@ impl Certificate<'_> {
         (valid_from, valid_from + duration)
     }
 
-    pub fn report(&self) -> Result<CertificateReport, &'static str> {
+    pub fn report<B: super::crypto_backend::CryptoBackend>(&self) -> Result<CertificateReport<B>, &'static str> {
         let certificate_validity = self.validity_period();
         let tbs_bytes = rasn::oer::encode(&self.0.to_be_signed).unwrap();
         let signature = self
@@ -307,9 +306,13 @@ impl CRL<'_> {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
-pub struct CertificateReport {
-    #[serde(serialize_with = "crate::util::serialize_bytes_hex")]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+pub struct CertificateReport<B: super::crypto_backend::CryptoBackend> {
+    #[cfg_attr(
+        feature = "json",
+        serde(serialize_with = "crate::util::serialize_bytes_hex")
+    )]
     id8: [u8; 8],
     subject: CertificateSubject,
     valid_from: chrono::DateTime<chrono::Utc>,
@@ -317,13 +320,13 @@ pub struct CertificateReport {
     app_permissions: alloc::vec::Vec<super::perms::AppPermission>,
     cert_issue_permissions: alloc::vec::Vec<CertPermission>,
     cert_request_permissions: alloc::vec::Vec<CertPermission>,
-    signature: CertificateSignature,
-    public_key: super::crypto::PublicKey,
-    #[serde(skip_serializing)]
+    signature: CertificateSignature<B>,
+    public_key: super::crypto::PublicKey<B>,
+    #[cfg_attr(feature = "json", serde(skip_serializing))]
     encoded: alloc::vec::Vec<u8>,
 }
 
-impl CertificateReport {
+impl<B: super::crypto_backend::CryptoBackend> CertificateReport<B> {
     pub fn id8(&self) -> [u8; 8] {
         self.id8
     }
@@ -347,17 +350,17 @@ impl CertificateReport {
         &self.cert_issue_permissions
     }
 
-    pub fn signature(&self) -> &CertificateSignature {
+    pub fn signature(&self) -> &CertificateSignature<B> {
         &self.signature
     }
 
-    pub fn public_key(&self) -> &super::crypto::PublicKey {
+    pub fn public_key(&self) -> &super::crypto::PublicKey<B> {
         &self.public_key
     }
 
     pub(crate) fn app_permissions_authorized_by(
         &self,
-        issuer: &CertificateReport,
+        issuer: &CertificateReport<B>,
         chain_length: u64,
     ) -> bool {
         self.app_permissions.iter().all(|app_permission| {
@@ -370,16 +373,17 @@ impl CertificateReport {
         app_permission: RawAppPermission<'_>,
         chain_length: u64,
     ) -> bool {
-        let contains_psid_explicitly = self
-            .cert_request_permissions
-            .iter()
-            .any(|permission| permission.subject_permissions.contains_psid_explicitly(app_permission.psid()));
+        let contains_psid_explicitly = self.cert_request_permissions.iter().any(|permission| {
+            permission
+                .subject_permissions
+                .contains_psid_explicitly(app_permission.psid())
+        });
         self.cert_issue_permissions.iter().any(|permission| {
             permission.end_entity_authorization
                 && permission.chain_length.0.contains(&chain_length)
                 && permission
-                    .subject_permissions
-                    .authorizes(app_permission, contains_psid_explicitly)
+                .subject_permissions
+                .authorizes(app_permission, contains_psid_explicitly)
         })
     }
 
@@ -476,42 +480,48 @@ impl CertificateReport {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
-#[serde(tag = "type")]
-pub enum CertificateSignature {
-    #[serde(rename = "unsigned")]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+#[cfg_attr(feature = "json", serde(tag = "type"))]
+pub enum CertificateSignature<B: super::crypto_backend::CryptoBackend> {
+    #[cfg_attr(feature = "json", serde(rename = "unsigned"))]
     Unsigned,
-    #[serde(rename = "unknown")]
+    #[cfg_attr(feature = "json", serde(rename = "unknown"))]
     Unknown,
-    #[serde(rename = "self_signed")]
+    #[cfg_attr(feature = "json", serde(rename = "self_signed"))]
     SelfSigned { verifies: bool },
-    #[serde(rename = "parent")]
+    #[cfg_attr(feature = "json", serde(rename = "parent"))]
     Parent {
-        #[serde(serialize_with = "crate::util::serialize_bytes_hex")]
+        #[cfg_attr(
+            feature = "json",
+            serde(serialize_with = "crate::util::serialize_bytes_hex")
+        )]
         id8: [u8; 8],
         hash_alg: super::crypto::HashAlgorithm,
-        #[serde(skip_serializing)]
+        #[cfg_attr(feature = "json", serde(skip_serializing))]
         tbs_bytes: alloc::vec::Vec<u8>,
-        #[serde(skip_serializing)]
-        signature: super::crypto::Signature,
+        #[cfg_attr(feature = "json", serde(skip_serializing))]
+        signature: super::crypto::Signature<B>,
     },
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
-#[serde(tag = "type")]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+#[cfg_attr(feature = "json", serde(tag = "type"))]
 pub enum CertificateSubject {
-    #[serde(rename = "none")]
+    #[cfg_attr(feature = "json", serde(rename = "none"))]
     None,
-    #[serde(rename = "hostname")]
+    #[cfg_attr(feature = "json", serde(rename = "hostname"))]
     Hostname { hostname: alloc::string::String },
-    #[serde(rename = "binary")]
+    #[cfg_attr(feature = "json", serde(rename = "binary"))]
     Binary {
-        #[serde(serialize_with = "crate::util::serialize_bytes")]
+        #[cfg_attr(feature = "json", serde(serialize_with = "crate::util::serialize_bytes"))]
         id: alloc::vec::Vec<u8>,
     },
 }
 
-impl Display for CertificateSubject {
+#[cfg(feature = "std")]
+impl core::fmt::Display for CertificateSubject {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::None => write!(f, "none"),
@@ -546,7 +556,8 @@ impl RawAppPermission<'_> {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct CertPermission {
     chain_length: ChainLength,
     end_entity_authorization: bool,
@@ -554,7 +565,8 @@ pub struct CertPermission {
     subject_permissions: CertSubjectPermissions,
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct ChainLength(core::ops::RangeInclusive<u64>);
 
 impl core::cmp::Ord for ChainLength {
@@ -572,16 +584,17 @@ impl core::cmp::PartialOrd for ChainLength {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
-#[serde(tag = "type")]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+#[cfg_attr(feature = "json", serde(tag = "type"))]
 pub enum CertSubjectPermissions {
-    #[serde(rename = "all")]
+    #[cfg_attr(feature = "json", serde(rename = "all"))]
     All {},
-    #[serde(rename = "explicit")]
+    #[cfg_attr(feature = "json", serde(rename = "explicit"))]
     Explicit {
         permissions: alloc::vec::Vec<CertSubjectPermission>,
     },
-    #[serde(rename = "Unknown")]
+    #[cfg_attr(feature = "json", serde(rename = "Unknown"))]
     Unknown {},
 }
 
@@ -611,29 +624,31 @@ impl CertSubjectPermissions {
     }
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct CertSubjectPermission {
     psid: super::perms::ProviderService,
     auth: CertSubjectAuthorization,
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, Clone, PartialOrd, Ord)]
-#[serde(tag = "type")]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+#[cfg_attr(feature = "json", serde(tag = "type"))]
 pub enum CertSubjectAuthorization {
-    #[serde(rename = "all")]
+    #[cfg_attr(feature = "json", serde(rename = "all"))]
     All {},
-    #[serde(rename = "bitmap")]
+    #[cfg_attr(feature = "json", serde(rename = "bitmap"))]
     Bitmap {
-        #[serde(serialize_with = "crate::util::serialize_bytes_hex")]
+        #[cfg_attr(feature = "json", serde(serialize_with = "crate::util::serialize_bytes_hex"))]
         subordinate_may_have: alloc::vec::Vec<u8>,
-        #[serde(serialize_with = "crate::util::serialize_bytes_hex")]
+        #[cfg_attr(feature = "json", serde(serialize_with = "crate::util::serialize_bytes_hex"))]
         subordinate_must_have: alloc::vec::Vec<u8>,
     },
-    #[serde(rename = "opaque")]
+    #[cfg_attr(feature = "json", serde(rename = "opaque"))]
     Opaque {
         data: alloc::vec::Vec<alloc::vec::Vec<u8>>,
     },
-    #[serde(rename = "unsupported")]
+    #[cfg_attr(feature = "json", serde(rename = "unsupported"))]
     Unsupported {},
 }
 

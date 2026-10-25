@@ -5,7 +5,7 @@ const CPOC_BASE_URL: &'static str = "https://cpoc.jrc.ec.europa.eu/L0/";
 #[derive(Debug)]
 struct RootCAEntry {
     root_ca_bytes: Vec<u8>,
-    root_ca: c_its::security::certs::CertificateReport,
+    root_ca: c_its::security::certs::CertificateReport<c_its::security::std_crypto::StdCrypto>,
     distribution_centre: Option<String>,
 }
 
@@ -29,7 +29,7 @@ fn main() {
         .expect("Unable to open TLM certificate");
     let tlm_cert = c_its::security::certs::Certificate::parse(&tlm_cert)
         .expect("Could not parse TLM certificate");
-    let tlm_report = tlm_cert.report()
+    let tlm_report = tlm_cert.report::<c_its::security::std_crypto::StdCrypto>()
         .expect("Could not generate TLM certificate report");
 
     let c_its::security::certs::CertificateSubject::Hostname { hostname } = tlm_report.subject() else {
@@ -51,7 +51,7 @@ fn main() {
         panic!("TLM certificate signature does not validate");
     }
 
-    let mut security_store = c_its::security::SecurityStore::new();
+    let mut security_store = c_its::security::SecurityStore::<c_its::security::std_crypto::StdCrypto>::new();
     security_store.add_root_ca(tlm_cert).unwrap();
 
     let id8_hex = hex::encode_upper(tlm_report.id8());
@@ -131,7 +131,7 @@ fn main() {
                     }
 
                     let root_cert = c_its::security::certs::Certificate::new(&root_cert.selfsigned_root_ca);
-                    let root_cert_report = root_cert.report()
+                    let root_cert_report = root_cert.report::<c_its::security::std_crypto::StdCrypto>()
                         .expect("Could not generate report for root CA");
 
                     if root_cas.insert(root_cert_report.id8(), RootCAEntry {

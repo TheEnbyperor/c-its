@@ -12,7 +12,7 @@ const LINK_TYPE_802_11: pcap_parser::Linktype = pcap_parser::Linktype(105);
 fn handle_802_11_frame(
     data: &[u8],
     timestamp: chrono::DateTime<chrono::Utc>,
-    store: &mut c_its::security::SecurityStore,
+    store: &mut c_its::security::SecurityStore<c_its::security::std_crypto::StdCrypto>,
 ) {
     let frame = match ieee80211::GenericFrame::new(data, false) {
         Ok(frame) => frame,
@@ -220,7 +220,7 @@ fn handle_802_11_frame(
 fn build_inner_data<'a>(
     port: u16,
     data: &'a [u8],
-    security_report: Option<&c_its::security::SecurityReport>,
+    security_report: Option<&c_its::security::SecurityReport<c_its::security::std_crypto::StdCrypto>>,
 ) -> data_structures::InnerData<'a> {
     if port == 2001 {
         match rasn::uper::decode::<c_its::asn::cam_pdu_descriptions::CAM>(data) {
@@ -310,7 +310,7 @@ fn main() {
         pcap_parser::LegacyPcapReader::new(65536, pcap_file).expect("Unable to parse PCAP header");
     let mut pcap_header = None;
 
-    let mut security_store = c_its::security::SecurityStore::new();
+    let mut security_store = c_its::security::SecurityStore::<c_its::security::std_crypto::StdCrypto>::new();
 
     let ctl_data_dir = std::path::PathBuf::from_str("./ctl").unwrap();
     for ctl_entry in ctl_data_dir.read_dir().unwrap() {

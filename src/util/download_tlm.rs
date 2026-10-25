@@ -27,7 +27,7 @@ fn main() {
     let tlm = c_its::security::certs::Certificate::parse(&data)
         .expect("Could not parse TLM certificate");
 
-    let tlm_report = tlm.report()
+    let tlm_report = tlm.report::<c_its::security::std_crypto::StdCrypto>()
         .expect("Could not generate TLM certificate report");
 
     let c_its::security::certs::CertificateSubject::Hostname { hostname } = tlm_report.subject() else {

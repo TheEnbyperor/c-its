@@ -1,13 +1,16 @@
-#[derive(Debug, serde::Serialize)]
-pub struct SecurityReport {
+use core::ops::Deref;
+
+#[derive(Debug)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+pub struct SecurityReport<B: super::crypto_backend::CryptoBackend> {
     provider_service: super::perms::ProviderService,
     generation_time: Option<chrono::DateTime<chrono::Utc>>,
     signature_verifies: bool,
-    possible_chains: alloc::vec::Vec<Chain>,
+    possible_chains: alloc::vec::Vec<Chain<B>>,
     validated_chain_index: Option<usize>,
 }
 
-impl SecurityReport {
+impl<B: super::crypto_backend::CryptoBackend> SecurityReport<B> {
     pub fn provider_service(&self) -> super::perms::ProviderService {
         self.provider_service
     }
@@ -20,11 +23,11 @@ impl SecurityReport {
         self.signature_verifies
     }
 
-    pub fn possible_chains(&self) -> &[Chain] {
+    pub fn possible_chains(&self) -> &[Chain<B>] {
         &self.possible_chains
     }
     
-    pub fn validated_chain(&self) -> Option<&Chain> {
+    pub fn validated_chain(&self) -> Option<&Chain<B>> {
         if let Some(validated_chain_index) = self.validated_chain_index {
             Some(&self.possible_chains[validated_chain_index])
         } else {
@@ -33,41 +36,43 @@ impl SecurityReport {
     }
 }
 
-#[derive(Debug, serde::Serialize)]
-pub struct Chain {
-    certs: alloc::vec::Vec<ChainEntry>,
+#[derive(Debug)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+pub struct Chain<B: super::crypto_backend::CryptoBackend> {
+    certs: alloc::vec::Vec<ChainEntry<B>>,
     ee_permissions_valid: bool,
 }
 
-impl Chain {
+impl<B: super::crypto_backend::CryptoBackend> Chain<B> {
     pub fn len(&self) -> usize {
         self.certs.len()
     }
     
-    pub fn ee_cert(&self) -> &super::certs::CertificateReport {
+    pub fn ee_cert(&self) -> &super::certs::CertificateReport<B> {
         &self.certs[self.certs.len()-1].cert
     }
 }
 
-#[derive(Debug, serde::Serialize)]
-pub struct ChainEntry {
-    cert: super::certs::CertificateReport,
+#[derive(Debug)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+pub struct ChainEntry<B: super::crypto_backend::CryptoBackend> {
+    cert: super::certs::CertificateReport<B>,
     is_root: bool,
     signature_verifies: bool,
     revoked: bool,
     expired: bool,
 }
 
-pub struct SecurityStore {
+pub struct SecurityStore<B: super::crypto_backend::CryptoBackend> {
     certificates: alloc::collections::BTreeMap<
         [u8; 8],
-        alloc::collections::BTreeSet<super::certs::CertificateReport>,
+        alloc::collections::BTreeSet<super::certs::CertificateReport<B>>,
     >,
-    root_certificates: alloc::collections::BTreeMap<[u8; 8], super::certs::CertificateReport>,
+    root_certificates: alloc::collections::BTreeMap<[u8; 8], super::certs::CertificateReport<B>>,
     crls: alloc::collections::BTreeMap<[u8; 8], super::certs::CRL<'static>>,
 }
 
-impl SecurityStore {
+impl<B: super::crypto_backend::CryptoBackend> SecurityStore<B> where super::certs::CertificateReport<B>: Ord {
     pub fn new() -> Self {
         Self {
             certificates: Default::default(),
@@ -79,7 +84,7 @@ impl SecurityStore {
     pub fn insert_cert(
         &mut self,
         certificate: super::certs::Certificate,
-    ) -> Result<super::certs::CertificateReport, &'static str> {
+    ) -> Result<super::certs::CertificateReport<B>, &'static str> {
         let report = certificate.report()?;
         let set = self
             .certificates
@@ -108,10 +113,10 @@ impl SecurityStore {
     fn get_certificate<'a>(
         &'a self,
         id: [u8; 8],
-        signature: &super::crypto::Signature,
+        signature: &super::crypto::Signature<B>,
         hash: super::crypto::HashAlgorithm,
         tbs_bytes: &[u8],
-    ) -> Option<(&'a super::certs::CertificateReport, bool)> {
+    ) -> Option<(&'a super::certs::CertificateReport<B>, bool)> {
         let set = self.certificates.get(&id)?;
         if set.len() == 1 {
             Some((set.first().unwrap(), false))
@@ -130,7 +135,7 @@ impl SecurityStore {
         }
     }
 
-    fn possible_chains(&self, cert: &super::certs::CertificateReport) -> alloc::vec::Vec<Chain> {
+    fn possible_chains(&self, cert: &super::certs::CertificateReport<B>) -> alloc::vec::Vec<Chain<B>> {
         if self.root_certificates.contains_key(&cert.id8()) {
             return alloc::vec![Chain {
                 certs: alloc::vec![ChainEntry {
@@ -247,7 +252,7 @@ impl SecurityStore {
         }
     }
 
-    fn validate_chain(&self, chain: &mut Chain, now: chrono::DateTime<chrono::Utc>) {
+    fn validate_chain(&self, chain: &mut Chain<B>, now: chrono::DateTime<chrono::Utc>) {
         if chain.certs.is_empty() {
             return;
         }
@@ -291,7 +296,7 @@ impl SecurityStore {
         &mut self,
         data: &rasn_its::ieee1609dot2::SignedData,
         now: chrono::DateTime<chrono::Utc>,
-    ) -> Result<SecurityReport, &'static str> {
+    ) -> Result<SecurityReport<B>, &'static str> {
         let sig = super::crypto::Signature::parse(&data.signature)?;
         let hash: super::crypto::HashAlgorithm = data.hash_id.try_into()?;
         let tbs_bytes = rasn::oer::encode(&data.tbs_data).unwrap();
@@ -358,4 +363,46 @@ impl SecurityStore {
 
         Ok(report)
     }
+}
+
+pub fn sign_message<B: super::crypto_backend::CryptoBackend>(
+    data: crate::geo_networking::CommonHeader,
+    header_info: rasn_its::ieee1609dot2::HeaderInfo,
+    private_key: &super::crypto::PrivateKey<B>,
+    certificate: &super::certs::Certificate,
+    full_cert: bool
+) -> Option<crate::geo_networking::SignedPacket> {
+    let mut common_header = alloc::vec![];
+    data.write(&mut common_header);
+
+    let tbs_data = rasn_its::ieee1609dot2::ToBeSignedData {
+        header_info,
+        payload: rasn_its::ieee1609dot2::SignedDataPayload::builder()
+            .data(rasn_its::ieee1609dot2::Ieee1609Dot2Data {
+                protocol_version: 3,
+                content: rasn_its::ieee1609dot2::Ieee1609Dot2Content::UnsecuredData(
+                    rasn_its::ieee1609dot2::base_types::Opaque(common_header.into())
+                )
+            }).build().unwrap()
+    };
+    let tbs_bytes = rasn::oer::encode(&tbs_data).unwrap();
+
+    let signature = private_key.sign(&tbs_bytes, Some(&certificate))?;
+
+    Some(crate::geo_networking::SignedPacket(rasn_its::ieee1609dot2::SignedData {
+        hash_id: private_key.hash_algorithm().into(),
+        tbs_data,
+        signer: if full_cert {
+            rasn_its::ieee1609dot2::SignerIdentifier::Certificate(
+                rasn_its::ieee1609dot2::SequenceOfCertificate(alloc::vec![
+                    certificate.as_cert().deref().clone(),
+                ].into())
+            )
+        } else {
+            rasn_its::ieee1609dot2::SignerIdentifier::Digest(
+                rasn_its::ieee1609dot2::base_types::HashedId8(certificate.id8()?.into()),
+            )
+        },
+        signature: signature.as_signature()
+    }))
 }

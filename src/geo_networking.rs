@@ -56,7 +56,7 @@ pub enum PacketType<'a> {
 }
 
 #[derive(Debug)]
-pub struct SignedPacket(rasn_its::ieee1609dot2::SignedData);
+pub struct SignedPacket(pub(crate) rasn_its::ieee1609dot2::SignedData);
 
 #[derive(Debug, Clone)]
 pub struct CommonHeader<'a> {
@@ -119,8 +119,9 @@ impl GeoCastPacket<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize)]
-#[serde(rename_all = "snake_case", tag = "type")]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+#[cfg_attr(feature = "json", serde(rename_all = "snake_case", tag = "type"))]
 pub enum GeoArea {
     Circle {
         radius: u16,
@@ -171,7 +172,8 @@ impl SingleHopBroadcastPacket<'_> {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct DistributedCongestionControlData {
     pub local_channel_busy_ratio: f32,
     pub max_neighboring_channel_busy_ratio: f32,
@@ -226,14 +228,16 @@ struct _CommonHeader {
     maximum_hop_limit: u8,
 }
 
-#[derive(Debug, Copy, Clone, serde::Serialize)]
+#[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct TrafficClass {
     pub store_carry_forward: bool,
     pub channel_offload: bool,
     pub traffic_class_id: u8,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
 pub struct LatLong {
     pub latitude: f64,
     pub longitude: f64,
@@ -285,8 +289,14 @@ impl<'a> GeoNetworkingFrame<'a> {
             PacketType::Unsecured(ch) => {
                 ch.write(&mut out);
             },
-            PacketType::Secured { .. } => {
-                unimplemented!()
+            PacketType::Secured(signed_packet) => {
+                let signed_data = rasn_its::ieee1609dot2::Ieee1609Dot2Data {
+                    protocol_version: rasn_its::ieee1609dot2::Ieee1609Dot2Data::VERSION,
+                    content: rasn_its::ieee1609dot2::Ieee1609Dot2Content::SignedData(
+                        alloc::boxed::Box::new(signed_packet.0.clone())
+                    ),
+                };
+                out.extend(rasn::oer::encode(&signed_data).unwrap());
             }
         }
 
@@ -347,7 +357,11 @@ impl<'a> GeoNetworkingFrame<'a> {
 }
 
 impl SignedPacket {
-    pub fn security_report(&self, store: &mut crate::security::SecurityStore, now: chrono::DateTime<chrono::Utc>) -> Result<super::security::SecurityReport, &'static str> {
+    pub fn security_report<B: crate::security::crypto_backend::CryptoBackend>(
+        &self, store: &mut crate::security::SecurityStore<B>, now: chrono::DateTime<chrono::Utc>
+    ) -> Result<super::security::SecurityReport<B>, &'static str> where
+        crate::security::certs::CertificateReport<B>: Ord
+    {
         store.security_report(&self.0, now)
     }
 
@@ -366,7 +380,7 @@ impl SignedPacket {
 }
 
 impl<'a> CommonHeader<'a> {
-    fn write(&self, out: &mut Vec<u8>) {
+    pub(crate) fn write(&self, out: &mut Vec<u8>) {
         let (header_type, header_sub_type, inner_data) = match &self.data {
             PacketData::Beacon(_) => (1, 0, None),
             PacketData::GeoAnycast(i) => match &i.area {

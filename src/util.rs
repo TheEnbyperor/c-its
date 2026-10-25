@@ -61,6 +61,7 @@ fn ita2_letter(code: u8) -> Option<char> {
     })
 }
 
+#[cfg(feature = "json")]
 pub fn serialize_mac_address<S: serde::Serializer>(
     mac: &ieee80211::mac_parser::MACAddress,
     ser: S,
@@ -73,6 +74,7 @@ pub fn serialize_mac_address<S: serde::Serializer>(
     ser.serialize_str(str.as_str())
 }
 
+#[cfg(feature = "json")]
 pub fn serialize_bytes<S: serde::Serializer>(
     data: &[u8],
     ser: S,
@@ -82,6 +84,7 @@ pub fn serialize_bytes<S: serde::Serializer>(
     ser.serialize_str(str.as_str())
 }
 
+#[cfg(feature = "json")]
 pub fn serialize_bytes_hex<S: serde::Serializer>(
     data: &[u8],
     ser: S,

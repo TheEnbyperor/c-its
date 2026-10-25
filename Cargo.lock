@@ -755,6 +755,7 @@ dependencies = [
  "chrono",
  "clap",
  "crypto-bigint 0.7.5",
+ "digest 0.11.3",
  "ecdsa 0.17.0",
  "elliptic-curve 0.14.1",
  "generic-array 1.4.5",

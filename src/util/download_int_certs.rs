@@ -1,4 +1,3 @@
-use std::io::Write;
 use std::str::FromStr;
 
 #[derive(Debug, serde::Deserialize)]
@@ -14,14 +13,14 @@ struct IntCertMeta {
 #[derive(Debug)]
 struct EACertEntry {
     ea_cert_bytes: Vec<u8>,
-    ea_cert: c_its::security::certs::CertificateReport,
+    ea_cert: c_its::security::certs::CertificateReport<c_its::security::std_crypto::StdCrypto>,
     aa_access_point: String,
 }
 
 #[derive(Debug)]
 struct AACertEntry {
     aa_cert_bytes: Vec<u8>,
-    aa_cert: c_its::security::certs::CertificateReport,
+    aa_cert: c_its::security::certs::CertificateReport<c_its::security::std_crypto::StdCrypto>,
     access_point: String,
 }
 
@@ -43,19 +42,19 @@ fn join_preserving_base(
 struct State<'a> {
     now: chrono::DateTime<chrono::Utc>,
     client: &'a reqwest::blocking::Client,
-    security_store: c_its::security::SecurityStore,
+    security_store: c_its::security::SecurityStore<c_its::security::std_crypto::StdCrypto>,
     ctl_data_dir: &'a std::path::Path,
     root_ca_id8_hex: String,
     root_ca_meta: CertMeta,
     root_ca_path: std::path::PathBuf,
-    root_ca_report: c_its::security::certs::CertificateReport,
+    root_ca_report: c_its::security::certs::CertificateReport<c_its::security::std_crypto::StdCrypto>,
     root_ca_dc: reqwest::Url,
 }
 
 fn sync_ctl(state: &mut State) {
     let Some(ctl_permissions) = state.root_ca_report.get_ctl_permission() else {
         log::error!("Root CA certificate does not have Certificate Trust List permissions");
-        return;;
+        return;
     };
 
     log::info!("Requesting CTL from {} for CA {}", state.root_ca_meta.distribution_centre, state.root_ca_path.display());
@@ -165,7 +164,7 @@ fn sync_ctl(state: &mut State) {
                     }
 
                     let ea_cert = c_its::security::certs::Certificate::new(&ea_cert_entry.ea_certificate);
-                    let ea_cert_report = match ea_cert.report() {
+                    let ea_cert_report = match ea_cert.report::<c_its::security::std_crypto::StdCrypto>() {
                         Ok(report) => report,
                         Err(err) => {
                             log::error!("Could not generate report for EA cert: {}", err);
@@ -191,7 +190,7 @@ fn sync_ctl(state: &mut State) {
                     }
 
                     let aa_cert = c_its::security::certs::Certificate::new(&aa_cert_entry.aa_certificate);
-                    let aa_cert_report = match aa_cert.report() {
+                    let aa_cert_report = match aa_cert.report::<c_its::security::std_crypto::StdCrypto>() {
                         Ok(report) => report,
                         Err(err) => {
                             log::error!("Could not generate report for AA cert: {}", err);
@@ -261,7 +260,7 @@ fn sync_ctl(state: &mut State) {
 fn sync_crl(state: &mut State) {
     if !state.root_ca_report.has_crl_permission() {
         log::error!("Root CA certificate does not have Certificate Revocation List permissions");
-        return;;
+        return;
     };
 
     log::info!("Requesting CRL from {} for CA {}", state.root_ca_meta.distribution_centre, state.root_ca_path.display());
@@ -391,7 +390,7 @@ fn main() {
         let root_ca = c_its::security::certs::Certificate::parse(&root_ca_bytes).unwrap();
         let root_ca_id8_hex = hex::encode_upper(root_ca.id8().unwrap());
         let root_ca_meta: CertMeta = serde_json::from_slice(&root_ca_meta_bytes).unwrap();
-        let root_ca_report = root_ca.report().unwrap();
+        let root_ca_report = root_ca.report::<c_its::security::std_crypto::StdCrypto>().unwrap();
 
         let c_its::security::certs::CertificateSignature::SelfSigned { verifies } = root_ca_report.signature() else {
             log::error!("Root CA certificate does not have a self-signed signature");
@@ -404,7 +403,7 @@ fn main() {
 
         let root_ca_dc = reqwest::Url::parse(&root_ca_meta.distribution_centre).unwrap();
 
-        let mut security_store = c_its::security::SecurityStore::new();
+        let mut security_store = c_its::security::SecurityStore::<c_its::security::std_crypto::StdCrypto>::new();
         security_store.add_root_ca(root_ca).unwrap();
 
         let mut state = State {

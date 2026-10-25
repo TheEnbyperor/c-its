@@ -32,7 +32,7 @@ async fn main() {
     let s3_client = aws_sdk_s3::Client::new(&aws_config);
 
     let root_cert = c_its::security::certs::Certificate::parse(&std::fs::read(&args.root_cert).unwrap()).unwrap();
-    let root_key = c_its::security::crypto::PrivateKey::from_bytes_pem(&std::fs::read(&args.root_key).unwrap()).unwrap();
+    let root_key = c_its::security::crypto::PrivateKey::<c_its::security::std_crypto::StdCrypto>::from_bytes_pem(&std::fs::read(&args.root_key).unwrap()).unwrap();
 
     let id8 = hex::encode_upper(root_cert.id8().unwrap_or_default());
     let now = chrono::Utc::now();
